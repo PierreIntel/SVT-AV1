@@ -597,10 +597,10 @@ static INLINE void integral_images_512(const uint8_t *src, int32_t src_stride, i
         __m512i d_left = _mm512_setzero_si512();
 
         // zero the left column.
-        for(i=0; i<16; i++){
+        /*for(i=0; i<16; i++){
             ct[i * buf_stride - 1] = dt[0 * buf_stride - 1] = 0;
-        }
-        /*
+        }*/
+        
         ct[0 * buf_stride - 1] = dt[0 * buf_stride - 1] = 0;
         ct[1 * buf_stride - 1] = dt[1 * buf_stride - 1] = 0;
         ct[2 * buf_stride - 1] = dt[2 * buf_stride - 1] = 0;
@@ -617,7 +617,7 @@ static INLINE void integral_images_512(const uint8_t *src, int32_t src_stride, i
         ct[13 * buf_stride - 1] = dt[13 * buf_stride - 1] = 0;
         ct[14 * buf_stride - 1] = dt[14 * buf_stride - 1] = 0;
         ct[15 * buf_stride - 1] = dt[15 * buf_stride - 1] = 0;
-        */
+        
         int x = 0;
 
         do {
@@ -626,25 +626,25 @@ static INLINE void integral_images_512(const uint8_t *src, int32_t src_stride, i
             __m512i r32[8];
 
             for(i=0; i<16; i++){
-                s[i] =  _mm_load_si128((__m128i *)(src_t + i * src_stride + x));
+                s[i] =  _mm_loadu_si128((__m128i *)(src_t + i * src_stride + x));
             }
             /*
-            s[0] = _mm_load_si128((__m128i *)(src_t + 0 * src_stride + x));
-            s[1] = _mm_load_si128((__m128i *)(src_t + 1 * src_stride + x));
-            s[2] = _mm_load_si128((__m128i *)(src_t + 2 * src_stride + x));
-            s[3] = _mm_load_si128((__m128i *)(src_t + 3 * src_stride + x));
-            s[4] = _mm_load_si128((__m128i *)(src_t + 4 * src_stride + x));
-            s[5] = _mm_load_si128((__m128i *)(src_t + 5 * src_stride + x));
-            s[6] = _mm_load_si128((__m128i *)(src_t + 6 * src_stride + x));
-            s[7] = _mm_load_si128((__m128i *)(src_t + 7 * src_stride + x));
-            s[8] = _mm_load_si128((__m128i *)(src_t + 8 * src_stride + x));
-            s[9] = _mm_load_si128((__m128i *)(src_t + 9 * src_stride + x));
-            s[10] = _mm_load_si128((__m128i *)(src_t + 10 * src_stride + x));
-            s[11] = _mm_load_si128((__m128i *)(src_t + 11 * src_stride + x));
-            s[12] = _mm_load_si128((__m128i *)(src_t + 12 * src_stride + x));
-            s[13] = _mm_load_si128((__m128i *)(src_t + 13 * src_stride + x));
-            s[14] = _mm_load_si128((__m128i *)(src_t + 14 * src_stride + x));
-            s[15] = _mm_load_si128((__m128i *)(src_t + 15 * src_stride + x));
+            s[0] = _mm_loadu_si128((__m128i *)(src_t + 0 * src_stride + x));
+            s[1] = _mm_loadu_si128((__m128i *)(src_t + 1 * src_stride + x));
+            s[2] = _mm_loadu_si128((__m128i *)(src_t + 2 * src_stride + x));
+            s[3] = _mm_loadu_si128((__m128i *)(src_t + 3 * src_stride + x));
+            s[4] = _mm_loadu_si128((__m128i *)(src_t + 4 * src_stride + x));
+            s[5] = _mm_loadu_si128((__m128i *)(src_t + 5 * src_stride + x));
+            s[6] = _mm_loadu_si128((__m128i *)(src_t + 6 * src_stride + x));
+            s[7] = _mm_loadu_si128((__m128i *)(src_t + 7 * src_stride + x));
+            s[8] = _mm_loadu_si128((__m128i *)(src_t + 8 * src_stride + x));
+            s[9] = _mm_loadu_si128((__m128i *)(src_t + 9 * src_stride + x));
+            s[10] = _mm_loadu_si128((__m128i *)(src_t + 10 * src_stride + x));
+            s[11] = _mm_loadu_si128((__m128i *)(src_t + 11 * src_stride + x));
+            s[12] = _mm_loadu_si128((__m128i *)(src_t + 12 * src_stride + x));
+            s[13] = _mm_loadu_si128((__m128i *)(src_t + 13 * src_stride + x));
+            s[14] = _mm_loadu_si128((__m128i *)(src_t + 14 * src_stride + x));
+            s[15] = _mm_loadu_si128((__m128i *)(src_t + 15 * src_stride + x));
             */
             partial_transpose_8bit_16x16_512(s, t);
 
@@ -1651,19 +1651,19 @@ void eb_av1_selfguided_restoration_avx2(const uint8_t *dgd8, int32_t width, int3
     //printf("buf_diag_border %d ",buf_diag_border);
     // Generate integral images from the input. C will contain sums of squares; D
     // will contain just sums
-//#ifdef NON_AVX512_SUPPORT
+/*
     if (highbd)
         integral_images_highbd(
             CONVERT_TO_SHORTPTR(dgd0), dgd_stride, width_ext, height_ext, ctl, dtl, buf_stride);
     else
-        integral_images(dgd0, dgd_stride, width_ext, height_ext, ctl, dtl, buf_stride);
-/*#else
+        integral_images_512(dgd0, dgd_stride, width_ext, height_ext, ctl, dtl, buf_stride);
+*/
     if (highbd)
         integral_images_highbd_512(
             CONVERT_TO_SHORTPTR(dgd0), dgd_stride, width_ext, height_ext, ctl, dtl, buf_stride);
     else
         integral_images_512(dgd0, dgd_stride, width_ext, height_ext, ctl, dtl, buf_stride);
-#endif*/
+
     const SgrParamsType *const params = &eb_sgr_params[sgr_params_idx];
     // Write to flt0 and flt1
     // If params->r == 0 we skip the corresponding filter. We only allow one of
@@ -1675,7 +1675,7 @@ void eb_av1_selfguided_restoration_avx2(const uint8_t *dgd8, int32_t width, int3
     //printf("sgr_params_idx %d, ", sgr_params_idx);
     //printf("params_r0 %d, params_r1 %d\n", params->r[0], params->r[1]);
     
-//#ifdef NON_AVX512_SUPPORT
+/*
     if (params->r[0] > 0) {
         calc_ab_fast(A, b, C, D, width, height, buf_stride, bit_depth, sgr_params_idx, 0);
         final_filter_fast(
@@ -1686,7 +1686,7 @@ void eb_av1_selfguided_restoration_avx2(const uint8_t *dgd8, int32_t width, int3
         calc_ab(A, b, C, D, width, height, buf_stride, bit_depth, sgr_params_idx, 1);
         final_filter(flt1, flt_stride, A, b, buf_stride, dgd8, dgd_stride, width, height, highbd);
     }
-/*#else
+*/
     if (params->r[0] > 0) {
         calc_ab_fast_512(A, b, C, D, width, height, buf_stride, bit_depth, sgr_params_idx, 0);
         final_filter_fast_512(
@@ -1697,8 +1697,7 @@ void eb_av1_selfguided_restoration_avx2(const uint8_t *dgd8, int32_t width, int3
         calc_ab_512(A, b, C, D, width, height, buf_stride, bit_depth, sgr_params_idx, 1);
         final_filter_512(flt1, flt_stride, A, b, buf_stride, dgd8, dgd_stride, width, height, highbd);
     }
-#endif
-*/
+
 }
 
 void eb_apply_selfguided_restoration_avx2(const uint8_t *dat8, int32_t width, int32_t height,
