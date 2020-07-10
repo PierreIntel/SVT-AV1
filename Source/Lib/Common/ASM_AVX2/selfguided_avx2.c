@@ -1713,58 +1713,88 @@ void eb_apply_selfguided_restoration_avx2(const uint8_t *dat8, int32_t width, in
     int32_t                    xq[2];
     eb_decode_xq(xqd, xq, params);
 
-    const __m256i xq0      = _mm256_set1_epi32(xq[0]);
-    const __m256i xq1      = _mm256_set1_epi32(xq[1]);
-    const __m256i rounding = round_for_shift(SGRPROJ_PRJ_BITS + SGRPROJ_RST_BITS);
+    //const __m256i xq0      = _mm256_set1_epi32(xq[0]);
+    //const __m256i xq1      = _mm256_set1_epi32(xq[1]);
+    const __m512i xq0      = _mm512_set1_epi32(xq[0]);
+    const __m512i xq1      = _mm512_set1_epi32(xq[1]);
+    //const __m256i rounding = round_for_shift(SGRPROJ_PRJ_BITS + SGRPROJ_RST_BITS);
+    const __m512i rounding = round_for_shift_512(SGRPROJ_PRJ_BITS + SGRPROJ_RST_BITS);
 
     int32_t i = height;
 
     if (!highbd) {
-        const __m256i idx = _mm256_setr_epi32(0, 4, 1, 5, 0, 0, 0, 0);
+        //const __m256i idx = _mm256_setr_epi32(0, 4, 1, 5, 0, 0, 0, 0);
+        const __m512i idx = _mm512_setr_epi32(0, 4, 1, 5, 0, 0, 0, 0, 8, 12, 9, 13, 0, 0, 0, 0);
 
         do {
             // Calculate output in batches of 16 pixels
             int32_t j = 0;
             do {
-                const __m128i src  = xx_loadu_128(dat8 + j);
+                /* const __m128i src  = xx_loadu_128(dat8 + j);
                 const __m256i ep_0 = _mm256_cvtepu8_epi32(src);
                 const __m256i ep_1 = _mm256_cvtepu8_epi32(_mm_srli_si128(src, 8));
                 const __m256i u_0  = _mm256_slli_epi32(ep_0, SGRPROJ_RST_BITS);
                 const __m256i u_1  = _mm256_slli_epi32(ep_1, SGRPROJ_RST_BITS);
                 __m256i       v_0  = _mm256_slli_epi32(u_0, SGRPROJ_PRJ_BITS);
-                __m256i       v_1  = _mm256_slli_epi32(u_1, SGRPROJ_PRJ_BITS);
+                __m256i       v_1  = _mm256_slli_epi32(u_1, SGRPROJ_PRJ_BITS);*/
+
+                const __m128i src_0  = xx_loadu_128(dat8 + j);
+                const __m128i src_1  = xx_loadu_128(dat8 + j + 16);
+                const __m512i ep_0 = _mm512_cvtepu8_epi32(src_0);
+                const __m512i ep_1 = _mm512_cvtepu8_epi32(src_1);
+                const __m512i u_0  = _mm512_slli_epi32(ep_0, SGRPROJ_RST_BITS);
+                const __m512i u_1  = _mm512_slli_epi32(ep_1, SGRPROJ_RST_BITS);
+                __m512i       v_0  = _mm512_slli_epi32(u_0, SGRPROJ_PRJ_BITS);
+                __m512i       v_1  = _mm512_slli_epi32(u_1, SGRPROJ_PRJ_BITS);
 
                 if (params->r[0] > 0) {
-                    const __m256i f1_0 = _mm256_sub_epi32(yy_loadu_256(&flt0[j + 0]), u_0);
+                    /*const __m256i f1_0 = _mm256_sub_epi32(yy_loadu_256(&flt0[j + 0]), u_0);
                     const __m256i f1_1 = _mm256_sub_epi32(yy_loadu_256(&flt0[j + 8]), u_1);
                     v_0                = _mm256_add_epi32(v_0, _mm256_mullo_epi32(xq0, f1_0));
-                    v_1                = _mm256_add_epi32(v_1, _mm256_mullo_epi32(xq0, f1_1));
+                    v_1                = _mm256_add_epi32(v_1, _mm256_mullo_epi32(xq0, f1_1));*/
+                    const __m512i f1_0 = _mm512_sub_epi32(yy_loadu_512(&flt0[j + 0]), u_0);
+                    const __m512i f1_1 = _mm512_sub_epi32(yy_loadu_512(&flt0[j + 8]), u_1);
+                    v_0                = _mm512_add_epi32(v_0, _mm512_mullo_epi32(xq0, f1_0));
+                    v_1                = _mm512_add_epi32(v_1, _mm512_mullo_epi32(xq0, f1_1));
                 }
 
                 if (params->r[1] > 0) {
-                    const __m256i f2_0 = _mm256_sub_epi32(yy_loadu_256(&flt1[j + 0]), u_0);
+                    /*const __m256i f2_0 = _mm256_sub_epi32(yy_loadu_256(&flt1[j + 0]), u_0);
                     const __m256i f2_1 = _mm256_sub_epi32(yy_loadu_256(&flt1[j + 8]), u_1);
                     v_0                = _mm256_add_epi32(v_0, _mm256_mullo_epi32(xq1, f2_0));
-                    v_1                = _mm256_add_epi32(v_1, _mm256_mullo_epi32(xq1, f2_1));
+                    v_1                = _mm256_add_epi32(v_1, _mm256_mullo_epi32(xq1, f2_1));*/
+                    const __m512i f2_0 = _mm512_sub_epi32(yy_loadu_512(&flt1[j + 0]), u_0);
+                    const __m512i f2_1 = _mm512_sub_epi32(yy_loadu_512(&flt1[j + 8]), u_1);
+                    v_0                = _mm512_add_epi32(v_0, _mm512_mullo_epi32(xq1, f2_0));
+                    v_1                = _mm512_add_epi32(v_1, _mm512_mullo_epi32(xq1, f2_1));
                 }
 
-                const __m256i w_0 = _mm256_srai_epi32(_mm256_add_epi32(v_0, rounding),
+                /*const __m256i w_0 = _mm256_srai_epi32(_mm256_add_epi32(v_0, rounding),
                                                       SGRPROJ_PRJ_BITS + SGRPROJ_RST_BITS);
                 const __m256i w_1 = _mm256_srai_epi32(_mm256_add_epi32(v_1, rounding),
+                                                      SGRPROJ_PRJ_BITS + SGRPROJ_RST_BITS);*/
+                const __m512i w_0 = _mm512_srai_epi32(_mm512_add_epi32(v_0, rounding),
+                                                      SGRPROJ_PRJ_BITS + SGRPROJ_RST_BITS);
+                const __m512i w_1 = _mm512_srai_epi32(_mm512_add_epi32(v_1, rounding),
                                                       SGRPROJ_PRJ_BITS + SGRPROJ_RST_BITS);
 
                 // Pack into 8 bits and clamp to [0, 256)
                 // Note that each pack messes up the order of the bits,
                 // so we use a permute function to correct this
                 // 0, 1, 4, 5, 2, 3, 6, 7
-                const __m256i tmp = _mm256_packus_epi32(w_0, w_1);
+                //const __m256i tmp = _mm256_packus_epi32(w_0, w_1);
+                const __m512i tmp = _mm512_packus_epi32(w_0, w_1);
                 // 0, 1, 4, 5, 2, 3, 6, 7, 0, 1, 4, 5, 2, 3, 6, 7
-                const __m256i tmp2 = _mm256_packus_epi16(tmp, tmp);
+                //const __m256i tmp2 = _mm256_packus_epi16(tmp, tmp);
+                const __m512i tmp2 = _mm512_packus_epi16(tmp, tmp);
                 // 0, 1, 2, 3, 4, 5, 6, 7, ...
-                const __m256i tmp3 = _mm256_permutevar8x32_epi32(tmp2, idx);
-                const __m128i res  = _mm256_castsi256_si128(tmp3);
-                xx_storeu_128(dst8 + j, res);
-                j += 16;
+                //const __m256i tmp3 = _mm256_permutevar8x32_epi32(tmp2, idx);
+                //const __m128i res  = _mm256_castsi256_si128(tmp3);
+                const __m512i tmp3 = _mm512_permutexvar_epi32(idx, tmp2);
+                const __m256i res  = _mm512_castsi512_si256(tmp3);
+                //xx_storeu_128(dst8 + j, res);
+                xx_storeu_256(dst8 + j, res);
+                j += 32;
             } while (j < width);
 
             dat8 += stride;
@@ -1773,7 +1803,8 @@ void eb_apply_selfguided_restoration_avx2(const uint8_t *dat8, int32_t width, in
             dst8 += dst_stride;
         } while (--i);
     } else {
-        const __m256i   max   = _mm256_set1_epi16((1 << bit_depth) - 1);
+        //const __m256i   max   = _mm256_set1_epi16((1 << bit_depth) - 1);
+        const __m512i   max   = _mm512_set1_epi16((1 << bit_depth) - 1);
         const uint16_t *dat16 = CONVERT_TO_SHORTPTR(dat8);
         uint16_t *      dst16 = CONVERT_TO_SHORTPTR(dst8);
 
@@ -1781,41 +1812,66 @@ void eb_apply_selfguided_restoration_avx2(const uint8_t *dat8, int32_t width, in
             // Calculate output in batches of 16 pixels
             int32_t j = 0;
             do {
-                const __m128i src_0 = xx_loadu_128(dat16 + j + 0);
+                /*const __m128i src_0 = xx_loadu_128(dat16 + j + 0);
                 const __m128i src_1 = xx_loadu_128(dat16 + j + 8);
                 const __m256i ep_0  = _mm256_cvtepu16_epi32(src_0);
                 const __m256i ep_1  = _mm256_cvtepu16_epi32(src_1);
                 const __m256i u_0   = _mm256_slli_epi32(ep_0, SGRPROJ_RST_BITS);
                 const __m256i u_1   = _mm256_slli_epi32(ep_1, SGRPROJ_RST_BITS);
                 __m256i       v_0   = _mm256_slli_epi32(u_0, SGRPROJ_PRJ_BITS);
-                __m256i       v_1   = _mm256_slli_epi32(u_1, SGRPROJ_PRJ_BITS);
+                __m256i       v_1   = _mm256_slli_epi32(u_1, SGRPROJ_PRJ_BITS);*/
+                const __m256i src_0 = xx_loadu_256(dat16 + j + 0);
+                const __m256i src_1 = xx_loadu_256(dat16 + j + 16);
+                const __m512i ep_0  = _mm512_cvtepu16_epi32(src_0);
+                const __m512i ep_1  = _mm512_cvtepu16_epi32(src_1);
+                const __m512i u_0   = _mm512_slli_epi32(ep_0, SGRPROJ_RST_BITS);
+                const __m512i u_1   = _mm512_slli_epi32(ep_1, SGRPROJ_RST_BITS);
+                __m512i       v_0   = _mm512_slli_epi32(u_0, SGRPROJ_PRJ_BITS);
+                __m512i       v_1   = _mm512_slli_epi32(u_1, SGRPROJ_PRJ_BITS);
 
                 if (params->r[0] > 0) {
-                    const __m256i f1_0 = _mm256_sub_epi32(yy_loadu_256(&flt0[j + 0]), u_0);
+                    /*const __m256i f1_0 = _mm256_sub_epi32(yy_loadu_256(&flt0[j + 0]), u_0);
                     const __m256i f1_1 = _mm256_sub_epi32(yy_loadu_256(&flt0[j + 8]), u_1);
                     v_0                = _mm256_add_epi32(v_0, _mm256_mullo_epi32(xq0, f1_0));
-                    v_1                = _mm256_add_epi32(v_1, _mm256_mullo_epi32(xq0, f1_1));
+                    v_1                = _mm256_add_epi32(v_1, _mm256_mullo_epi32(xq0, f1_1));*/
+                    const __m512i f1_0 = _mm512_sub_epi32(yy_loadu_512(&flt0[j + 0]), u_0);
+                    const __m512i f1_1 = _mm512_sub_epi32(yy_loadu_512(&flt0[j + 16]), u_1);
+                    v_0                = _mm512_add_epi32(v_0, _mm512_mullo_epi32(xq0, f1_0));
+                    v_1                = _mm512_add_epi32(v_1, _mm512_mullo_epi32(xq0, f1_1));
                 }
 
                 if (params->r[1] > 0) {
-                    const __m256i f2_0 = _mm256_sub_epi32(yy_loadu_256(&flt1[j + 0]), u_0);
+                    /*const __m256i f2_0 = _mm256_sub_epi32(yy_loadu_256(&flt1[j + 0]), u_0);
                     const __m256i f2_1 = _mm256_sub_epi32(yy_loadu_256(&flt1[j + 8]), u_1);
                     v_0                = _mm256_add_epi32(v_0, _mm256_mullo_epi32(xq1, f2_0));
-                    v_1                = _mm256_add_epi32(v_1, _mm256_mullo_epi32(xq1, f2_1));
+                    v_1                = _mm256_add_epi32(v_1, _mm256_mullo_epi32(xq1, f2_1));*/
+                    const __m512i f2_0 = _mm512_sub_epi32(yy_loadu_512(&flt1[j + 0]), u_0);
+                    const __m512i f2_1 = _mm512_sub_epi32(yy_loadu_512(&flt1[j + 8]), u_1);
+                    v_0                = _mm512_add_epi32(v_0, _mm512_mullo_epi32(xq1, f2_0));
+                    v_1                = _mm512_add_epi32(v_1, _mm512_mullo_epi32(xq1, f2_1));
                 }
 
-                const __m256i w_0 = _mm256_srai_epi32(_mm256_add_epi32(v_0, rounding),
+                /*const __m256i w_0 = _mm256_srai_epi32(_mm256_add_epi32(v_0, rounding),
                                                       SGRPROJ_PRJ_BITS + SGRPROJ_RST_BITS);
-                const __m256i w_1 = _mm256_srai_epi32(_mm256_add_epi32(v_1, rounding),
+                const __m512i w_1 = _mm512_srai_epi32(_mm512_add_epi32(v_1, rounding),
+                                                      SGRPROJ_PRJ_BITS + SGRPROJ_RST_BITS);*/
+
+                const __m512i w_0 = _mm512_srai_epi32(_mm512_add_epi32(v_0, rounding),
+                                                      SGRPROJ_PRJ_BITS + SGRPROJ_RST_BITS);
+                const __m512i w_1 = _mm512_srai_epi32(_mm512_add_epi32(v_1, rounding),
                                                       SGRPROJ_PRJ_BITS + SGRPROJ_RST_BITS);
 
                 // Pack into 16 bits and clamp to [0, 2^bit_depth)
                 // Note that packing into 16 bits messes up the order of the bits,
                 // so we use a permute function to correct this
-                const __m256i tmp  = _mm256_packus_epi32(w_0, w_1);
+                /*const __m256i tmp  = _mm256_packus_epi32(w_0, w_1);
                 const __m256i tmp2 = _mm256_permute4x64_epi64(tmp, 0xd8);
                 const __m256i res  = _mm256_min_epi16(tmp2, max);
-                yy_storeu_256(dst16 + j, res);
+                yy_storeu_256(dst16 + j, res);*/
+                const __m512i tmp  = _mm512_packus_epi32(w_0, w_1);
+                const __m512i tmp2 = _mm512_permutexvar_epi64(tmp, _mm512_set_epi64(0, 2, 4, 6, 1, 3, 5, 7));
+                const __m512i res  = _mm512_min_epi16(tmp2, max);
+                yy_storeu_512(dst16 + j, res);
                 j += 16;
             } while (j < width);
 

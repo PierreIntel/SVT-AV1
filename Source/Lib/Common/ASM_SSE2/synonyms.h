@@ -45,6 +45,10 @@ static INLINE void xx_storeu_128(void *const a, const __m128i v) {
     _mm_storeu_si128((__m128i *)a, v);
 }
 
+static INLINE void xx_storeu_256(void *const a, const __m256i v) {
+    _mm256_storeu_si256((__m256i *)a, v);
+}
+
 static INLINE __m128i _mm_loadh_epi64(const void *const p, const __m128i s) {
     return _mm_castpd_si128(_mm_loadh_pd(_mm_castsi128_pd(s), (double *)p));
 }
