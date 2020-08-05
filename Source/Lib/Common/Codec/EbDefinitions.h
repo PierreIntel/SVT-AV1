@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 #ifndef NON_AVX512_SUPPORT
-#define NON_AVX512_SUPPORT
+//#define NON_AVX512_SUPPORT
 #endif
 
 #define MAX_TILE_CNTS 128 // Annex A.3

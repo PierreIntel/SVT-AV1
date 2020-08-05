@@ -147,6 +147,330 @@ static AOM_FORCE_INLINE void integral_images(const uint8_t *src, int32_t src_str
     } while (y < height);
 }
 
+static INLINE void cvt_16to32bit_8x16(const __m128i *const s, __m256i * r) {
+    r[0] = _mm256_cvtepu16_epi32(s[0]);
+    r[1] = _mm256_cvtepu16_epi32(s[1]);
+    r[2] = _mm256_cvtepu16_epi32(s[2]);
+    r[3] = _mm256_cvtepu16_epi32(s[3]);
+    r[4] = _mm256_cvtepu16_epi32(s[4]);
+    r[5] = _mm256_cvtepu16_epi32(s[5]);
+    r[6] = _mm256_cvtepu16_epi32(s[6]);
+    r[7] = _mm256_cvtepu16_epi32(s[7]);
+    r[8] = _mm256_cvtepu16_epi32(s[8]);
+    r[9] = _mm256_cvtepu16_epi32(s[9]);
+    r[10] = _mm256_cvtepu16_epi32(s[10]);
+    r[11] = _mm256_cvtepu16_epi32(s[11]);
+    r[12] = _mm256_cvtepu16_epi32(s[12]);
+    r[13] = _mm256_cvtepu16_epi32(s[13]);
+    r[14] = _mm256_cvtepu16_epi32(s[14]);
+    r[15] = _mm256_cvtepu16_epi32(s[15]);
+}
+
+static INLINE void add_32bit_8x16(const __m256i neighbor, __m256i r[16]) {
+    r[0] = _mm256_add_epi32(neighbor, r[0]);
+    r[1] = _mm256_add_epi32(r[0], r[1]);
+    r[2] = _mm256_add_epi32(r[1], r[2]);
+    r[3] = _mm256_add_epi32(r[2], r[3]);
+    r[4] = _mm256_add_epi32(r[3], r[4]);
+    r[5] = _mm256_add_epi32(r[4], r[5]);
+    r[6] = _mm256_add_epi32(r[5], r[6]);
+    r[7] = _mm256_add_epi32(r[6], r[7]);
+    r[8] = _mm256_add_epi32(r[7], r[8]);
+    r[9] = _mm256_add_epi32(r[8], r[9]);
+    r[10] = _mm256_add_epi32(r[9], r[10]);
+    r[11] = _mm256_add_epi32(r[10], r[11]);
+    r[12] = _mm256_add_epi32(r[11], r[12]);
+    r[13] = _mm256_add_epi32(r[12], r[13]);
+    r[14] = _mm256_add_epi32(r[13], r[14]);
+    r[15] = _mm256_add_epi32(r[14], r[15]);
+}
+
+static INLINE void transpose_32bit_8x16_avx2(const __m256i *const in, __m512i *const out) {
+    const __m256i a0 = _mm256_unpacklo_epi32(in[0], in[1]);
+    const __m256i a1 = _mm256_unpacklo_epi32(in[2], in[3]);
+    const __m256i a2 = _mm256_unpacklo_epi32(in[4], in[5]);
+    const __m256i a3 = _mm256_unpacklo_epi32(in[6], in[7]);
+    const __m256i a4 = _mm256_unpacklo_epi32(in[8], in[9]);
+    const __m256i a5 = _mm256_unpacklo_epi32(in[10], in[11]);
+    const __m256i a6 = _mm256_unpacklo_epi32(in[12], in[13]);
+    const __m256i a7 = _mm256_unpacklo_epi32(in[14], in[15]);
+    const __m256i a8 = _mm256_unpackhi_epi32(in[0], in[1]);
+    const __m256i a9 = _mm256_unpackhi_epi32(in[2], in[3]);
+    const __m256i a10 = _mm256_unpackhi_epi32(in[4], in[5]);
+    const __m256i a11 = _mm256_unpackhi_epi32(in[6], in[7]);
+    const __m256i a12 = _mm256_unpackhi_epi32(in[8], in[9]);
+    const __m256i a13 = _mm256_unpackhi_epi32(in[10], in[11]);
+    const __m256i a14 = _mm256_unpackhi_epi32(in[12], in[13]);
+    const __m256i a15 = _mm256_unpackhi_epi32(in[14], in[15]);
+
+    const __m256i b0 = _mm256_unpacklo_epi64(a0, a1);
+    const __m256i b1 = _mm256_unpacklo_epi64(a2, a3);
+    const __m256i b2 = _mm256_unpackhi_epi64(a0, a1);
+    const __m256i b3 = _mm256_unpackhi_epi64(a2, a3);
+    const __m256i b4 = _mm256_unpacklo_epi64(a4, a5);
+    const __m256i b5 = _mm256_unpacklo_epi64(a6, a7);
+    const __m256i b6 = _mm256_unpackhi_epi64(a4, a5);
+    const __m256i b7 = _mm256_unpackhi_epi64(a6, a7);
+    const __m256i b8 = _mm256_unpacklo_epi64(a8, a9);
+    const __m256i b9 = _mm256_unpacklo_epi64(a10, a11);
+    const __m256i b10 = _mm256_unpackhi_epi64(a8, a9);
+    const __m256i b11 = _mm256_unpackhi_epi64(a10, a11);
+    const __m256i b12 = _mm256_unpacklo_epi64(a12, a13);
+    const __m256i b13 = _mm256_unpacklo_epi64(a14, a15);
+    const __m256i b14 = _mm256_unpackhi_epi64(a12, a13);
+    const __m256i b15 = _mm256_unpackhi_epi64(a14, a15);
+
+    out[0] = _mm512_inserti64x4(_mm512_castsi256_si512(_mm256_unpacklo_epi128(b0, b1)), _mm256_unpacklo_epi128(b4, b5), 1);
+    out[1] = _mm512_inserti64x4(_mm512_castsi256_si512(_mm256_unpacklo_epi128(b2, b3)), _mm256_unpacklo_epi128(b6, b7), 1); 
+    out[4] = _mm512_inserti64x4(_mm512_castsi256_si512(_mm256_unpackhi_epi128(b0, b1)), _mm256_unpackhi_epi128(b4, b5), 1);
+    out[5] = _mm512_inserti64x4(_mm512_castsi256_si512(_mm256_unpackhi_epi128(b2, b3)), _mm256_unpackhi_epi128(b6, b7), 1); 
+    out[2] = _mm512_inserti64x4(_mm512_castsi256_si512(_mm256_unpacklo_epi128(b8, b9)), _mm256_unpacklo_epi128(b12, b13), 1);
+    out[3] = _mm512_inserti64x4(_mm512_castsi256_si512(_mm256_unpacklo_epi128(b10, b11)), _mm256_unpacklo_epi128(b14, b15), 1); 
+    out[6] = _mm512_inserti64x4(_mm512_castsi256_si512(_mm256_unpackhi_epi128(b8, b9)), _mm256_unpackhi_epi128(b12, b13), 1);
+    out[7] = _mm512_inserti64x4(_mm512_castsi256_si512(_mm256_unpackhi_epi128(b10, b11)), _mm256_unpackhi_epi128(b14, b15), 1); 
+}
+
+static INLINE void add_32bit_16x16(const __m512i neighbor, __m512i r[16]) {
+    r[0] = _mm512_add_epi32(neighbor, r[0]);
+    r[1] = _mm512_add_epi32(r[0], r[1]);
+    r[2] = _mm512_add_epi32(r[1], r[2]);
+    r[3] = _mm512_add_epi32(r[2], r[3]);
+    r[4] = _mm512_add_epi32(r[3], r[4]);
+    r[5] = _mm512_add_epi32(r[4], r[5]);
+    r[6] = _mm512_add_epi32(r[5], r[6]);
+    r[7] = _mm512_add_epi32(r[6], r[7]);
+    r[8] = _mm512_add_epi32(r[7], r[8]);
+    r[9] = _mm512_add_epi32(r[8], r[9]);
+    r[10] = _mm512_add_epi32(r[9], r[10]);
+    r[11] = _mm512_add_epi32(r[10], r[11]);
+    r[12] = _mm512_add_epi32(r[11], r[12]);
+    r[13] = _mm512_add_epi32(r[12], r[13]);
+    r[14] = _mm512_add_epi32(r[13], r[14]);
+    r[15] = _mm512_add_epi32(r[14], r[15]);
+}
+
+static __inline void store_32bit_16x8(const __m512i r[8], int32_t *const buf,
+                                   const int32_t buf_stride) {
+    _mm512_storeu_si512((__m512i *)(buf + 0 * buf_stride), r[0]);
+    _mm512_storeu_si512((__m512i *)(buf + 1 * buf_stride), r[1]);
+    _mm512_storeu_si512((__m512i *)(buf + 2 * buf_stride), r[2]);
+    _mm512_storeu_si512((__m512i *)(buf + 3 * buf_stride), r[3]);
+    _mm512_storeu_si512((__m512i *)(buf + 4 * buf_stride), r[4]);
+    _mm512_storeu_si512((__m512i *)(buf + 5 * buf_stride), r[5]);
+    _mm512_storeu_si512((__m512i *)(buf + 6 * buf_stride), r[6]);
+    _mm512_storeu_si512((__m512i *)(buf + 7 * buf_stride), r[7]);
+}
+void print_512(__m512i vec, char* str){
+printf("%s = %llx %llx %llx %llx %llx %llx %llx %llx\n",str, vec[7], vec[6],vec[5], vec[4],vec[3], vec[2],vec[1], vec[0]);}
+void print_128(__m128i vec, char* str){
+printf("%s = %llx %llx\n",str, vec[1], vec[0]);}
+void print_256(__m256i vec, char* str){
+printf("%s = %llx %llx %llx %llx\n",str, vec[3], vec[2], vec[1], vec[0]);}
+
+void print_mat_128(__m128i s[8]){
+    printf("mat 128 8x8 : \n");int i; for(i=0;i<8;i++){print_128(s[i], "");}
+}
+void print_mat_256(__m256i s[16]){
+  printf("mat 256 16x16 : \n");int i; for(i=0;i<16;i++){print_256(s[i], "");}
+}
+void print_mat_256v(__m256i s[8]){
+  printf("mat 256 16x16 : \n");int i; for(i=0;i<8;i++){print_256(s[i], "");}
+}
+void print_mat_512(__m512i s[16]){
+  printf("mat 512 16x16 : \n");int i; for(i=0;i<16;i++){print_512(s[i], "");}
+}
+void print_mat_512v(__m512i s[8]){
+  printf("mat 512 16x16 : \n");int i; for(i=0;i<8;i++){print_512(s[i], "");}
+}
+
+static INLINE void integral_images_512(const uint8_t *src, int32_t src_stride, int32_t width,
+                                             int32_t height, int32_t *C, int32_t *D,
+                                             int32_t buf_stride) {
+    const uint8_t *src_t = src;
+    int32_t *      ct    = C + buf_stride + 1;
+    int32_t *      dt    = D + buf_stride + 1;
+    const __m512i  zero  = _mm512_setzero_si512();
+    int32_t h = height;
+    int32_t w = width;
+    memset(C, 0, sizeof(*C) * (width + 16));
+    memset(D, 0, sizeof(*D) * (width + 16));
+
+    int y = 0;
+    int i, j;
+    do {
+        __m256i c_left = _mm256_setzero_si256();
+        __m256i d_left = _mm256_setzero_si256();
+
+        // zero the left column.
+        /*for(i=0; i<8; i++){
+            ct[i * buf_stride - 1] = dt[0 * buf_stride - 1] = 0;
+        }*/
+        ct[0 * buf_stride - 1] = dt[0 * buf_stride - 1] = 0;
+        ct[1 * buf_stride - 1] = dt[1 * buf_stride - 1] = 0;
+        ct[2 * buf_stride - 1] = dt[2 * buf_stride - 1] = 0;
+        ct[3 * buf_stride - 1] = dt[3 * buf_stride - 1] = 0;
+        ct[4 * buf_stride - 1] = dt[4 * buf_stride - 1] = 0;
+        ct[5 * buf_stride - 1] = dt[5 * buf_stride - 1] = 0;
+        ct[6 * buf_stride - 1] = dt[6 * buf_stride - 1] = 0;
+        ct[7 * buf_stride - 1] = dt[7 * buf_stride - 1] = 0;
+        
+        
+        int x = 0;
+        do {
+            if((width - x) > 15){
+                __m128i s[8];
+                __m128i t[16];
+                __m256i u[16];
+                __m256i r32[16];
+                __m512i u32[8];
+
+                /*for(i=0; i<8; i++){
+                    s[i] =  _mm_loadu_si128((__m128i *)(src_t + i * src_stride + x));
+                }*/
+                s[0] =  _mm_loadu_si128((__m128i *)(src_t + 0 * src_stride + x));
+                s[1] =  _mm_loadu_si128((__m128i *)(src_t + 1 * src_stride + x));
+                s[2] =  _mm_loadu_si128((__m128i *)(src_t + 2 * src_stride + x));
+                s[3] =  _mm_loadu_si128((__m128i *)(src_t + 3 * src_stride + x));
+                s[4] =  _mm_loadu_si128((__m128i *)(src_t + 4 * src_stride + x));
+                s[5] =  _mm_loadu_si128((__m128i *)(src_t + 5 * src_stride + x));
+                s[6] =  _mm_loadu_si128((__m128i *)(src_t + 6 * src_stride + x));
+                s[7] =  _mm_loadu_si128((__m128i *)(src_t + 7 * src_stride + x));
+
+                transpose_8bit_16x8(s,s);
+                
+                t[15] = _mm_unpackhi_epi8(s[7], _mm_setzero_si128());
+                t[14] = _mm_unpacklo_epi8(s[7], _mm_setzero_si128());
+                t[13] = _mm_unpackhi_epi8(s[6], _mm_setzero_si128());
+                t[12] = _mm_unpacklo_epi8(s[6], _mm_setzero_si128());
+                t[11] = _mm_unpackhi_epi8(s[5], _mm_setzero_si128());
+                t[10] = _mm_unpacklo_epi8(s[5], _mm_setzero_si128());
+                t[9] = _mm_unpackhi_epi8(s[4], _mm_setzero_si128());
+                t[8] = _mm_unpacklo_epi8(s[4], _mm_setzero_si128());
+                t[7] = _mm_unpackhi_epi8(s[3], _mm_setzero_si128());
+                t[6] = _mm_unpacklo_epi8(s[3], _mm_setzero_si128());
+                t[5] = _mm_unpackhi_epi8(s[2], _mm_setzero_si128());
+                t[4] = _mm_unpacklo_epi8(s[2], _mm_setzero_si128());
+                t[3] = _mm_unpackhi_epi8(s[1], _mm_setzero_si128());
+                t[2] = _mm_unpacklo_epi8(s[1], _mm_setzero_si128());
+                t[1] = _mm_unpackhi_epi8(s[0], _mm_setzero_si128());
+                t[0] = _mm_unpacklo_epi8(s[0], _mm_setzero_si128());   
+
+                cvt_16to32bit_8x16(t, r32);
+                add_32bit_8x16(d_left, r32);
+                d_left = r32[15];
+
+                transpose_32bit_8x16_avx2(r32, u32);
+
+                const __m512i d_top = _mm512_loadu_si512((__m512i *)(dt - buf_stride + x));
+                add_32bit_16x16(d_top, u32);
+                store_32bit_16x8(u32, dt + x, buf_stride);//printf("u32 = %llx %llx %llx %llx\n", u32[7][3], u32[7][2], u32[7][1], u32[7][0]);
+                //print_mat_512v(u32);
+                /*for(i=0; i<16; i++){
+                    t[i] = _mm_mullo_epi16(t[i], t[i]);
+                }*/
+                t[0] = _mm_mullo_epi16(t[0], t[0]);
+                t[1] = _mm_mullo_epi16(t[1], t[1]);
+                t[2] = _mm_mullo_epi16(t[2], t[2]);
+                t[3] = _mm_mullo_epi16(t[3], t[3]);
+                t[4] = _mm_mullo_epi16(t[4], t[4]);
+                t[5] = _mm_mullo_epi16(t[5], t[5]);
+                t[6] = _mm_mullo_epi16(t[6], t[6]);
+                t[7] = _mm_mullo_epi16(t[7], t[7]);
+                t[8] = _mm_mullo_epi16(t[8], t[8]);
+                t[9] = _mm_mullo_epi16(t[9], t[9]);
+                t[10] = _mm_mullo_epi16(t[10], t[10]);
+                t[11] = _mm_mullo_epi16(t[11], t[11]);
+                t[12] = _mm_mullo_epi16(t[12], t[12]);
+                t[13] = _mm_mullo_epi16(t[13], t[13]);
+                t[14] = _mm_mullo_epi16(t[14], t[14]);
+                t[15] = _mm_mullo_epi16(t[15], t[15]);
+
+                cvt_16to32bit_8x16(t, r32);
+                add_32bit_8x16(c_left, r32);
+                c_left = r32[15];
+
+                transpose_32bit_8x16_avx2(r32, u32);
+
+                const __m512i c_top = _mm512_loadu_si512((__m512i *)(ct - buf_stride + x));
+                add_32bit_16x16(c_top, u32);
+                //print_mat_512v(u32);
+                store_32bit_16x8(u32, ct + x, buf_stride);
+                x += 16;
+                //while(1);
+            }
+            else{
+                __m128i s[8];
+                __m256i r32[8];
+
+                s[0] = _mm_loadl_epi64((__m128i *)(src_t + 0 * src_stride + x));
+                s[1] = _mm_loadl_epi64((__m128i *)(src_t + 1 * src_stride + x));
+                s[2] = _mm_loadl_epi64((__m128i *)(src_t + 2 * src_stride + x));
+                s[3] = _mm_loadl_epi64((__m128i *)(src_t + 3 * src_stride + x));
+                s[4] = _mm_loadl_epi64((__m128i *)(src_t + 4 * src_stride + x));
+                s[5] = _mm_loadl_epi64((__m128i *)(src_t + 5 * src_stride + x));
+                s[6] = _mm_loadl_epi64((__m128i *)(src_t + 6 * src_stride + x));
+                s[7] = _mm_loadl_epi64((__m128i *)(src_t + 7 * src_stride + x));
+                
+                partial_transpose_8bit_8x8(s, s);
+                
+                s[7] = _mm_unpackhi_epi8(s[3], _mm_setzero_si128());
+                s[6] = _mm_unpacklo_epi8(s[3], _mm_setzero_si128());
+                s[5] = _mm_unpackhi_epi8(s[2], _mm_setzero_si128());
+                s[4] = _mm_unpacklo_epi8(s[2], _mm_setzero_si128());
+                s[3] = _mm_unpackhi_epi8(s[1], _mm_setzero_si128());
+                s[2] = _mm_unpacklo_epi8(s[1], _mm_setzero_si128());
+                s[1] = _mm_unpackhi_epi8(s[0], _mm_setzero_si128());
+                s[0] = _mm_unpacklo_epi8(s[0], _mm_setzero_si128());
+
+                cvt_16to32bit_8x8(s, r32);
+                add_32bit_8x8(d_left, r32);
+                d_left = r32[7];
+
+                transpose_32bit_8x8_avx2(r32, r32);
+
+                const __m256i d_top = _mm256_loadu_si256((__m256i *)(dt - buf_stride + x));
+                add_32bit_8x8(d_top, r32);
+                store_32bit_8x8(r32, dt + x, buf_stride);//printf("r32 = %llx %llx\n",r32[7][1], r32[7][0]);
+                //print_mat_256v(r32);
+                s[0] = _mm_mullo_epi16(s[0], s[0]);
+                s[1] = _mm_mullo_epi16(s[1], s[1]);
+                s[2] = _mm_mullo_epi16(s[2], s[2]);
+                s[3] = _mm_mullo_epi16(s[3], s[3]);
+                s[4] = _mm_mullo_epi16(s[4], s[4]);
+                s[5] = _mm_mullo_epi16(s[5], s[5]);
+                s[6] = _mm_mullo_epi16(s[6], s[6]);
+                s[7] = _mm_mullo_epi16(s[7], s[7]);
+
+                cvt_16to32bit_8x8(s, r32);
+                add_32bit_8x8(c_left, r32);
+                c_left = r32[7];
+
+                transpose_32bit_8x8_avx2(r32, r32);
+
+                const __m256i c_top = _mm256_loadu_si256((__m256i *)(ct - buf_stride + x));
+                add_32bit_8x8(c_top, r32);
+                //print_mat_256v(r32);
+                store_32bit_8x8(r32, ct + x, buf_stride);
+                x += 8;//if(x==16){while(1);}
+            }
+        } while (x < width);
+        //while(1);
+        for (int ln = 0; ln < 8; ++ln) {
+            _mm512_storeu_si512((__m512i *)(ct + x + ln * buf_stride), zero);
+            _mm512_storeu_si512((__m512i *)(dt + x + ln * buf_stride), zero);
+        }
+
+        src_t += 8 * src_stride;
+        ct += 8 * buf_stride;
+        dt += 8 * buf_stride;
+        y += 8;
+    } while (y < height);
+}
+
+
+
+
+
 static AOM_FORCE_INLINE void integral_images_highbd(const uint16_t *src, int32_t src_stride,
                                                     int32_t width, int32_t height, int32_t *C,
                                                     int32_t *D, int32_t buf_stride) {
@@ -743,7 +1067,7 @@ void eb_av1_selfguided_restoration_avx2(const uint8_t *dgd8, int32_t width, int3
         integral_images_highbd(
             CONVERT_TO_SHORTPTR(dgd0), dgd_stride, width_ext, height_ext, ctl, dtl, buf_stride);
     else
-        integral_images(dgd0, dgd_stride, width_ext, height_ext, ctl, dtl, buf_stride);
+        integral_images_512(dgd0, dgd_stride, width_ext, height_ext, ctl, dtl, buf_stride);
 
     const SgrParamsType *const params = &eb_sgr_params[sgr_params_idx];
     // Write to flt0 and flt1
