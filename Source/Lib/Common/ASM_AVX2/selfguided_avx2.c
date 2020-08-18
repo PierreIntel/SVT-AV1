@@ -555,6 +555,7 @@ static AOM_FORCE_INLINE void integral_images_highbd_512(const uint16_t *src, int
         ct[14 * buf_stride - 1] = dt[14 * buf_stride - 1] = 0;
         ct[15 * buf_stride - 1] = dt[15 * buf_stride - 1] = 0;*/
 
+        
         int x = 0;
         int x2 = 0;
         do {
@@ -565,11 +566,12 @@ static AOM_FORCE_INLINE void integral_images_highbd_512(const uint16_t *src, int
 
                 __m128i sp[8];
                 __m256i r32p[8], a32p[8];
-                __m512i resp[8];
+                __m512i resp[8], respb[8];
                 
                     for(i=0; i<8; i++){
                         s[i] =  _mm256_loadu_si256((__m256i *)(src_t + i * src_stride + x));
                     }
+                    //print_mat_256v(s);
                     /*s[0] = _mm256_loadu_si256((__m256i *)(src_t + 0 * src_stride + x));
                     s[1] = _mm256_loadu_si256((__m256i *)(src_t + 1 * src_stride + x));
                     s[2] = _mm256_loadu_si256((__m256i *)(src_t + 2 * src_stride + x));
@@ -590,10 +592,12 @@ static AOM_FORCE_INLINE void integral_images_highbd_512(const uint16_t *src, int
                     for(i=0;i<16;i++){
                         r32[i] = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(r32[i]));
                     }
+                    //print_mat_256(r32);
                     //cvt_16to32bit_16x16(s, r32);
                     for(i=0; i<16; i++){
                         a32[i] = _mm256_madd_epi16(r32[i], r32[i]);
                     }
+                    //print_mat_256(a32);
                     /*a32[0] = _mm512_madd_epi16(r32[0], r32[0]);
                     a32[1] = _mm512_madd_epi16(r32[1], r32[1]);
                     a32[2] = _mm512_madd_epi16(r32[2], r32[2]);
@@ -611,31 +615,35 @@ static AOM_FORCE_INLINE void integral_images_highbd_512(const uint16_t *src, int
                     a32[14] = _mm512_madd_epi16(r32[14], r32[14]);
                     a32[15] = _mm512_madd_epi16(r32[15], r32[15]);*/
                     add_32bit_8x16(c_left, a32);
+                    //print_mat_256(a32);
                     c_left = a32[15];
                     transpose_32bit_8x16_avx2(a32, t32);
+                    //print_mat_512v(t32);
                     const __m512i c_top = _mm512_loadu_si512((__m512i *)(ct - buf_stride + x));
                     add_32bit_16x8(c_top, t32);
                     //print_mat_512v(t32);
                     store_32bit_16x8(t32, ct + x, buf_stride);
                     add_32bit_8x16(d_left, r32);
+                    //print_mat_256(r32);
                     d_left = r32[15];
                     transpose_32bit_8x16_avx2(r32, t32p);
+                    //print_mat_512v(t32p);
                     const __m512i d_top = _mm512_loadu_si512((__m512i *)(dt - buf_stride + x));
                     add_32bit_16x8(d_top, t32p);
-                    //print_mat_512v(t32);
+                    //print_mat_512v(t32p);
                     store_32bit_16x8(t32p, dt + x, buf_stride);
                     x += 16;
                     /////////
-                   /*
+                   
                     for(i=0;i<2;i++){
-                        sp[0] = _mm_loadu_si128((__m128i *)(src_tp + 0 * src_stride + x2));
-                        sp[1] = _mm_loadu_si128((__m128i *)(src_tp + 1 * src_stride + x2));
-                        sp[2] = _mm_loadu_si128((__m128i *)(src_tp + 2 * src_stride + x2));
-                        sp[3] = _mm_loadu_si128((__m128i *)(src_tp + 3 * src_stride + x2));
-                        sp[4] = _mm_loadu_si128((__m128i *)(src_tp + 4 * src_stride + x2));
-                        sp[5] = _mm_loadu_si128((__m128i *)(src_tp + 5 * src_stride + x2));
-                        sp[6] = _mm_loadu_si128((__m128i *)(src_tp + 6 * src_stride + x2));
-                        sp[7] = _mm_loadu_si128((__m128i *)(src_tp + 7 * src_stride + x2));
+                        sp[0] = _mm_loadu_si128((__m128i *)(src_t + 0 * src_stride + x2));
+                        sp[1] = _mm_loadu_si128((__m128i *)(src_t + 1 * src_stride + x2));
+                        sp[2] = _mm_loadu_si128((__m128i *)(src_t + 2 * src_stride + x2));
+                        sp[3] = _mm_loadu_si128((__m128i *)(src_t + 3 * src_stride + x2));
+                        sp[4] = _mm_loadu_si128((__m128i *)(src_t + 4 * src_stride + x2));
+                        sp[5] = _mm_loadu_si128((__m128i *)(src_t + 5 * src_stride + x2));
+                        sp[6] = _mm_loadu_si128((__m128i *)(src_t + 6 * src_stride + x2));
+                        sp[7] = _mm_loadu_si128((__m128i *)(src_t + 7 * src_stride + x2));
                         //print_mat_128(sp);
                         transpose_16bit_8x8(sp, sp);
                         cvt_16to32bit_8x8(sp, r32p);
@@ -657,23 +665,29 @@ static AOM_FORCE_INLINE void integral_images_highbd_512(const uint16_t *src, int
                         const __m256i c_top = _mm256_loadu_si256((__m256i *)(ct - buf_stride + x2));
                         add_32bit_8x8(c_top, a32p);
                         //print_mat_256v(a32p);
-                        for(j=0;j<8;j++){
-                            if(i==0){resp[j] = _mm512_castsi256_si512(a32p[j]);}
-                            if(i==1){resp[j] = _mm512_inserti64x4(resp[j], a32p[j], 1);
-                                if(_mm512_cmp_epi32_mask(resp[j], t32p[j], 4)){print_512(resp[j], "res ");print_512(t32p[j], "t32 ");}
-                            }
-                        }//if(i==1){print_mat_512v(resp);print_mat_512v(t32p);while(1);}
-                        //if(i=1){print_mat_512v(res);while(1);}
+                        
                         //store_32bit_8x8(a32, ct + x, buf_stride);
-                        add_32bit_8x8(d_left, r32p);
-                        d_left = r32p[7];
+                        add_32bit_8x8(d_leftp, r32p);
+                        //print_mat_256v(r32p);
+                        d_leftp = r32p[7];
                         transpose_32bit_8x8_avx2(r32p, r32p);
+                        //print_mat_256v(r32p);
                         const __m256i d_top = _mm256_loadu_si256((__m256i *)(dt - buf_stride + x2));
                         add_32bit_8x8(d_top, r32p);
+                        //print_mat_256v(r32p);
                         //store_32bit_8x8(r32, dt + x, buf_stride);
                         x2 += 8;
-                        src_tp += 8 * src_stride;
-                    }*/
+                        for(j=0;j<8;j++){
+                            if(i==0){resp[j] = _mm512_castsi256_si512(a32p[j]);
+                                    respb[j] = _mm512_castsi256_si512(r32p[j]);}
+                            if(i==1){
+                                resp[j] = _mm512_inserti64x4(resp[j], a32p[j], 1);
+                                respb[j] = _mm512_inserti64x4(respb[j], r32p[j], 1);
+                                if(_mm512_cmp_epi32_mask(resp[j], t32[j], 4)){print_512(resp[j], "res ");print_512(t32[j], "t32 ");}
+                                if(_mm512_cmp_epi32_mask(respb[j], t32p[j], 4)){print_512(respb[j], "resb ");print_512(t32p[j], "t32p ");}
+                            }
+                        }
+                    }
             }else{
                 __m128i s[8];
                 __m256i r32[8], a32[8];
@@ -1929,7 +1943,7 @@ void eb_av1_selfguided_restoration_avx2(const uint8_t *dgd8, int32_t width, int3
 */
 
     if (highbd)
-        integral_images_highbd_512(
+        integral_images_highbd(
             CONVERT_TO_SHORTPTR(dgd0), dgd_stride, width_ext, height_ext, ctl, dtl, buf_stride);
     else
         integral_images_512(dgd0, dgd_stride, width_ext, height_ext, ctl, dtl, buf_stride);
@@ -1945,7 +1959,8 @@ void eb_av1_selfguided_restoration_avx2(const uint8_t *dgd8, int32_t width, int3
     assert(params->r[1] < AOMMIN(SGRPROJ_BORDER_VERT, SGRPROJ_BORDER_HORZ));
     //printf("sgr_params_idx %d, ", sgr_params_idx);
     //printf("params_r0 %d, params_r1 %d\n", params->r[0], params->r[1]);
- /*   
+ 
+ /*
     if (params->r[0] > 0) {
         calc_ab_fast(A, b, C, D, width, height, buf_stride, bit_depth, sgr_params_idx, 0);
         final_filter_fast(
@@ -1957,7 +1972,6 @@ void eb_av1_selfguided_restoration_avx2(const uint8_t *dgd8, int32_t width, int3
         final_filter(flt1, flt_stride, A, b, buf_stride, dgd8, dgd_stride, width, height, highbd);
     }
 */
-
 
     if (params->r[0] > 0) {
         calc_ab_fast_512(A, b, C, D, width, height, buf_stride, bit_depth, sgr_params_idx, 0);
