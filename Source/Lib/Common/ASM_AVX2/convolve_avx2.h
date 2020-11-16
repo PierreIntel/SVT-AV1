@@ -20,8 +20,33 @@
 #include "synonyms.h"
 #include "synonyms_avx2.h"
 
+#include <stdio.h>
+#include <immintrin.h>
+
+//#define VNNI_SUPPORT
+#define VNNI_1V
+//#define NO_PRINT
+
+static INLINE void print_512(__m512i vec, char* str){
+#ifndef NO_PRINT
+printf("%s = %llx %llx %llx %llx %llx %llx %llx %llx\n",str, vec[7], vec[6],vec[5], vec[4],vec[3], vec[2],vec[1], vec[0]);
+#endif
+}
+
+static INLINE void print_128(__m128i vec, char* str){
+#ifndef NO_PRINT
+printf("%s = %llx %llx\n",str, vec[1], vec[0]);
+#endif
+}
+static INLINE void print_256(__m256i vec, char* str){
+#ifndef NO_PRINT
+printf("%s = %llx %llx %llx %llx\n",str, vec[3], vec[2], vec[1], vec[0]);
+#endif
+}
+
 #define LEFT_SHIFT (2 * FILTER_BITS - 3 - COMPOUND_ROUND1_BITS)
 
+//#ifndef VNNI_SUPPORT
 // filters for 16
 DECLARE_ALIGNED(64, static const uint8_t, filt1_global_avx[]) = {
     0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8,
@@ -41,6 +66,67 @@ DECLARE_ALIGNED(64, static const uint8_t, filt4_global_avx[]) = {
     6,  7,  7,  8,  8,  9,  9,  10, 10, 11, 11, 12, 12, 13, 13, 14, 6,  7,  7,  8,  8,  9,
     9,  10, 10, 11, 11, 12, 12, 13, 13, 14, 6,  7,  7,  8,  8,  9,  9,  10, 10, 11, 11, 12,
     12, 13, 13, 14, 6,  7,  7,  8,  8,  9,  9,  10, 10, 11, 11, 12, 12, 13, 13, 14};
+
+/// VNNI
+
+DECLARE_ALIGNED(64, static const uint8_t, filt1_global_vnni[]) = {
+    0, 1, 2, 3, 1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6, 0, 1, 2, 3, 1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6,
+    0, 1, 2, 3, 1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6, 0, 1, 2, 3, 1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6};
+
+DECLARE_ALIGNED(64, static const uint8_t, filt2_global_vnni[]) = {
+    4, 5, 6, 7, 5, 6, 7, 8, 6, 7, 8, 9, 7, 8, 9, 10, 4, 5, 6, 7, 5, 6, 7, 8, 6, 7, 8, 9, 7, 8, 9, 10,
+    4, 5, 6, 7, 5, 6, 7, 8, 6, 7, 8, 9, 7, 8, 9, 10, 4, 5, 6, 7, 5, 6, 7, 8, 6, 7, 8, 9, 7, 8, 9, 10};
+
+DECLARE_ALIGNED(64, static const uint8_t, filt3_global_vnni[]) = {
+    4,  5,  5,  6,  6, 7,  7,  8,  8,  9,  9, 10, 10, 11, 11, 12, 4,  5,  5,  6,  6, 7,  7,  8,  8,  9,  9, 10, 10, 11, 11, 12,
+    4,  5,  5,  6,  6, 7,  7,  8,  8,  9,  9, 10, 10, 11, 11, 12, 4,  5,  5,  6,  6, 7,  7,  8,  8,  9,  9, 10, 10, 11, 11, 12};
+
+DECLARE_ALIGNED(64, static const uint8_t, filt4_global_vnni[]) = {
+    8, 9, 10, 11, 9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14, 8, 9, 10, 11, 9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14,
+    8, 9, 10, 11, 9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14, 8, 9, 10, 11, 9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14};
+
+/// END VNNI
+
+/*
+#else
+#ifdef VNNI_1V
+
+DECLARE_ALIGNED(64, static const uint8_t, filt1_global_avx[]) = {
+    0, 1, 2, 3, 1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6, 0, 1, 2, 3, 1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6,
+    0, 1, 2, 3, 1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6, 0, 1, 2, 3, 1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6};
+
+DECLARE_ALIGNED(64, static const uint8_t, filt2_global_avx[]) = {
+    4, 5, 6, 7, 5, 6, 7, 8, 6, 7, 8, 9, 7, 8, 9, 10, 4, 5, 6, 7, 5, 6, 7, 8, 6, 7, 8, 9, 7, 8, 9, 10,
+    4, 5, 6, 7, 5, 6, 7, 8, 6, 7, 8, 9, 7, 8, 9, 10, 4, 5, 6, 7, 5, 6, 7, 8, 6, 7, 8, 9, 7, 8, 9, 10};
+
+DECLARE_ALIGNED(64, static const uint8_t, filt3_global_avx[]) = {
+    4,  5,  5,  6,  6, 7,  7,  8,  8,  9,  9, 10, 10, 11, 11, 12, 4,  5,  5,  6,  6, 7,  7,  8,  8,  9,  9, 10, 10, 11, 11, 12,
+    4,  5,  5,  6,  6, 7,  7,  8,  8,  9,  9, 10, 10, 11, 11, 12, 4,  5,  5,  6,  6, 7,  7,  8,  8,  9,  9, 10, 10, 11, 11, 12};
+
+DECLARE_ALIGNED(64, static const uint8_t, filt4_global_avx[]) = {
+    8, 9, 10, 11, 9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14, 8, 9, 10, 11, 9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14,
+    8, 9, 10, 11, 9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14, 8, 9, 10, 11, 9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14};
+
+#else
+    DECLARE_ALIGNED(64, static const uint8_t, filt1_global_avx[]) = {
+    0, 1, 2, 3, 1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6, 4, 5, 6, 7, 5, 6, 7, 8, 6, 7, 8, 9, 7, 8, 9, 10,
+    0, 1, 2, 3, 1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6, 4, 5, 6, 7, 5, 6, 7, 8, 6, 7, 8, 9, 7, 8, 9, 10};
+
+    DECLARE_ALIGNED(64, static const uint8_t, filt2_global_avx[]) = {
+    16, 17, 18, 19, 17, 18, 19, 20, 18, 19, 20, 21, 19, 20, 21, 22, 20, 21, 22, 23, 21, 22, 23, 24, 22, 23, 24, 25, 23, 24, 25, 26,
+    16, 17, 18, 19, 17, 18, 19, 20, 18, 19, 20, 21, 19, 20, 21, 22, 20, 21, 22, 23, 21, 22, 23, 24, 22, 23, 24, 25, 23, 24, 25, 26};
+
+    DECLARE_ALIGNED(64, static const uint8_t, filt3_global_avx[]) = {
+    4,  5,  5,  6,  6, 7,  7,  8,  8,  9,  9, 10, 10, 11, 11, 12, 4,  5,  5,  6,  6, 7,  7,  8,  8,  9,  9, 10, 10, 11, 11, 12,
+    4,  5,  5,  6,  6, 7,  7,  8,  8,  9,  9, 10, 10, 11, 11, 12, 4,  5,  5,  6,  6, 7,  7,  8,  8,  9,  9, 10, 10, 11, 11, 12};
+
+    DECLARE_ALIGNED(64, static const uint8_t, filt4_global_avx[]) = {
+    6,  7,  7,  8,  8,  9,  9,  10, 10, 11, 11, 12, 12, 13, 13, 14, 6,  7,  7,  8,  8,  9,
+    9,  10, 10, 11, 11, 12, 12, 13, 13, 14, 6,  7,  7,  8,  8,  9,  9,  10, 10, 11, 11, 12,
+    12, 13, 13, 14, 6,  7,  7,  8,  8,  9,  9,  10, 10, 11, 11, 12, 12, 13, 13, 14};
+#endif
+#endif
+*/
 
 void convolve_2d_sr_hor_4tap_ssse3(const uint8_t *const src, const int32_t src_stride,
                                    const int32_t w, const int32_t h,
@@ -112,6 +198,14 @@ static INLINE void populate_coeffs_6tap_avx2(const __m128i coeffs_128, __m256i c
     coeffs[2] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi16(0x0C0Au));
 }
 
+static INLINE void populate_coeffs_6tap_avx2_vnni(const __m128i coeffs_128, __m256i coeffs[3]) {
+    const __m256i coeffs_256 = _mm256_broadcastsi128_si256(coeffs_128);
+
+    coeffs[0] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi32(0x08060402u));
+    coeffs[1] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi32(0x08060402u));
+    coeffs[2] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi16(0x0C0Au));
+}
+
 static INLINE void populate_coeffs_8tap_avx2(const __m128i coeffs_128, __m256i coeffs[4]) {
     const __m256i coeffs_256 = _mm256_broadcastsi128_si256(coeffs_128);
 
@@ -123,6 +217,14 @@ static INLINE void populate_coeffs_8tap_avx2(const __m128i coeffs_128, __m256i c
     coeffs[2] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi16(0x0a08u));
     // coeffs 6 7 6 7 6 7 6 7
     coeffs[3] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi16(0x0e0cu));
+}
+static INLINE void populate_coeffs_8tap_avx2_vnni(const __m128i coeffs_128, __m256i coeffs[4]) {
+    const __m256i coeffs_256 = _mm256_broadcastsi128_si256(coeffs_128);
+
+    coeffs[0] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi32(0x06040200u));
+    coeffs[1] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi32(0x0e0c0a08u));
+    coeffs[2] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi32(0x06040200u));
+    coeffs[3] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi32(0x0e0c0a08u));
 }
 
 static INLINE void prepare_half_coeffs_2tap_ssse3(const InterpFilterParams *const filter_params,
@@ -279,6 +381,24 @@ static INLINE void prepare_half_coeffs_6tap_avx2(const InterpFilterParams *const
     populate_coeffs_6tap_avx2(coeffs_1, coeffs);
 }
 
+static INLINE void prepare_half_coeffs_6tap_avx2_vnni(const InterpFilterParams *const filter_params,
+                                                 const int32_t                   subpel_q4,
+                                                 __m256i *const                  coeffs /* [3] */) {
+    const int16_t *const filter =
+        av1_get_interp_filter_subpel_kernel(*filter_params, subpel_q4 & SUBPEL_MASK);
+    const __m128i coeffs_8 = _mm_loadu_si128((__m128i *)filter);
+
+    // right shift all filter co-efficients by 1 to reduce the bits required.
+    // This extra right shift will be taken care of at the end while rounding
+    // the result.
+    // Since all filter co-efficients are even, this change will not affect the
+    // end result
+    assert(_mm_test_all_zeros(_mm_and_si128(coeffs_8, _mm_set1_epi16(1)),
+                              _mm_set1_epi16((short)0xffff)));
+    const __m128i coeffs_1 = _mm_srai_epi16(coeffs_8, 1);
+    populate_coeffs_6tap_avx2_vnni(coeffs_1, coeffs);
+}
+
 static INLINE void prepare_half_coeffs_8tap_avx2(const InterpFilterParams *const filter_params,
                                                  const int32_t                   subpel_q4,
                                                  __m256i *const                  coeffs /* [4] */) {
@@ -295,6 +415,23 @@ static INLINE void prepare_half_coeffs_8tap_avx2(const InterpFilterParams *const
                               _mm_set1_epi16((short)0xffff)));
     const __m128i coeffs_1 = _mm_srai_epi16(coeffs_8, 1);
     populate_coeffs_8tap_avx2(coeffs_1, coeffs);
+}
+static INLINE void prepare_half_coeffs_8tap_avx2_vnni(const InterpFilterParams *const filter_params,
+                                                 const int32_t                   subpel_q4,
+                                                 __m256i *const                  coeffs /* [4] */) {
+    const int16_t *const filter =
+        av1_get_interp_filter_subpel_kernel(*filter_params, subpel_q4 & SUBPEL_MASK);
+    const __m128i coeffs_8 = _mm_loadu_si128((__m128i *)filter);
+
+    // right shift all filter co-efficients by 1 to reduce the bits required.
+    // This extra right shift will be taken care of at the end while rounding
+    // the result.
+    // Since all filter co-efficients are even, this change will not affect the
+    // end result
+    assert(_mm_test_all_zeros(_mm_and_si128(coeffs_8, _mm_set1_epi16(1)),
+                              _mm_set1_epi16((short)0xffff)));
+    const __m128i coeffs_1 = _mm_srai_epi16(coeffs_8, 1);
+    populate_coeffs_8tap_avx2_vnni(coeffs_1, coeffs);
 }
 
 static INLINE void prepare_coeffs_2tap_sse2(const InterpFilterParams *const filter_params,
@@ -618,25 +755,204 @@ static INLINE __m256i x_convolve_4tap_avx2(const __m256i data, const __m256i coe
 
 static INLINE __m256i x_convolve_6tap_avx2(const __m256i data, const __m256i coeffs[3],
                                            const __m256i filt[3]) {
+//#ifndef VNNI_SUPPORT
     __m256i ss[3];
 
     ss[0] = _mm256_shuffle_epi8(data, filt[0]);
     ss[1] = _mm256_shuffle_epi8(data, filt[1]);
     ss[2] = _mm256_shuffle_epi8(data, filt[2]);
-
     return convolve_6tap_avx2(ss, coeffs);
+
+/*
+    __m256i res = convolve_6tap_avx2(ss, coeffs);
+ 
+    // VNNI for compare
+    __m256i filt_256[3], new_coeffs[3], ss1[3];
+
+    filt_256[0] = _mm256_loadu_si256((__m256i const *)filt1_global_vnni);
+    filt_256[1] = _mm256_loadu_si256((__m256i const *)filt2_global_vnni);
+    filt_256[2] = _mm256_loadu_si256((__m256i const *)filt3_global_vnni);
+
+    new_coeffs[0] = _mm256_unpacklo_epi16(coeffs[0], coeffs[1]);
+    new_coeffs[1] = _mm256_unpackhi_epi16(coeffs[0], coeffs[1]);
+    new_coeffs[2] = coeffs[2];
+
+    ss1[0] = _mm256_shuffle_epi8(data, filt_256[0]);
+    ss1[1] = _mm256_shuffle_epi8(data, filt_256[1]);
+    ss1[2] = _mm256_shuffle_epi8(data, filt_256[2]);
+
+    __m256i res0 = _mm256_dpbusd_epi32( _mm256_set1_epi32(0), ss1[0], new_coeffs[0]);
+    __m256i res1 = _mm256_dpbusd_epi32( _mm256_set1_epi32(0), ss1[1], new_coeffs[1]);
+    
+    __m256i r_0123 = _mm256_setr_m128i( _mm256_cvtepi32_epi16(res0), _mm256_cvtepi32_epi16(res1));
+    r_0123 = _mm256_permute4x64_epi64(r_0123, 0xD8);
+    __m256i r_45 = _mm256_maddubs_epi16(ss1[2], new_coeffs[2]);
+    __m256i r_012345 = _mm256_add_epi16(r_0123, r_45);
+
+    if(_mm256_cmp_epu16_mask(r_012345, res, 0x4)){
+        print_256(coeffs[0], "c0");
+        print_256(coeffs[1], "c1");
+        print_256(new_coeffs[0], "n_c1");
+        print_256(new_coeffs[1], "n_c1");
+        print_256(res, "r1");
+        print_256(r_012345, "r2");
+        while(1){}
+     }
+
+    return res;
+    */
+//#else
+    /*  2 VNNI Versions possible : 
+            0 1 2 3 1 2 3 4 16 17 18 19 17 18 19 20     // The one below
+        or  0 1 2 3 1 2 3 4 2 3 4 5 3 4 5 6             // For this one need to change the loads, 
+                                                        // instead of 2 line in one vector need the 2 times the same line because of shuffle that works only on 128 vector.
+                                                        // So in 256 vector we can't exchange bits between the 2 128 vectors */
+    // 1st Version
+/*#ifdef VNNI_1V
+    __m256i ss1[3];
+    
+    ss1[0] = _mm256_shuffle_epi8(data, filt[0]);     // 4 by 4
+    ss1[1] = _mm256_shuffle_epi8(data, filt[1]);
+    ss1[2] = _mm256_shuffle_epi8(data, filt[2]);     // last 2
+
+    __m256i res0 = _mm256_dpbusd_epi32( _mm256_set1_epi32(0), ss1[0], coeffs[0]);
+    __m256i res1 = _mm256_dpbusd_epi32( _mm256_set1_epi32(0), ss1[1], coeffs[1]);
+    
+    __m256i r_0123 = _mm256_setr_m128i( _mm256_cvtepi32_epi16(res0), _mm256_cvtepi32_epi16(res1));
+    r_0123 = _mm256_permute4x64_epi64(r_0123, 0xD8);
+    __m256i r_45 = _mm256_maddubs_epi16(ss1[2], coeffs[2]);
+    __m256i r_012345 = _mm256_add_epi16(r_0123, r_45);
+
+    //print_256(r_012345, "res");
+    //while(1){} 
+    return r_012345;
+
+    
+#else
+    //2d Version
+    __m256i ss2[3];
+    ss2[0] = _mm256_permutexvar_epi8(filt[0], data);
+    ss2[1] = _mm256_permutexvar_epi8(filt[1], data);
+    ss2[2] = _mm256_shuffle_epi8(data, filt[2]);
+
+    __m256i res0 = _mm256_dpbusd_epi32( _mm256_set1_epi32(0), ss2[0], coeffs[0]);
+    __m256i res1 = _mm256_dpbusd_epi32( _mm256_set1_epi32(0), ss2[1], coeffs[1]);
+    __m256i r_0123 = _mm256_setr_m128i( _mm256_cvtepi32_epi16(res0), _mm256_cvtepi32_epi16(res1));
+    __m256i r_45 = _mm256_maddubs_epi16(ss2[2], coeffs[2]);
+    __m256i r_012345 = _mm256_add_epi16(r_0123, r_45);
+
+    //print_256(r_012345, "r_012345");
+    //while(1){}    
+    return r_012345;
+#endif
+#endif*/
+}
+static INLINE __m256i x_convolve_6tap_avx2_vnni(const __m256i data, const __m256i coeffs[3],
+                                           const __m256i filt[3]) {
+
+    __m256i new_coeffs[3], ss1[3];
+    ss1[0] = _mm256_shuffle_epi8(data, filt[0]);
+    ss1[1] = _mm256_shuffle_epi8(data, filt[1]);
+    ss1[2] = _mm256_shuffle_epi8(data, filt[2]);
+
+    __m256i res0 = _mm256_dpbusd_epi32( _mm256_set1_epi32(0), ss1[0], coeffs[0]);
+    __m256i res1 = _mm256_dpbusd_epi32( _mm256_set1_epi32(0), ss1[1], coeffs[1]);
+    
+    __m256i r_0123 = _mm256_setr_m128i( _mm256_cvtepi32_epi16(res0), _mm256_cvtepi32_epi16(res1));
+    r_0123 = _mm256_permute4x64_epi64(r_0123, 0xD8);
+    __m256i r_45 = _mm256_maddubs_epi16(ss1[2], coeffs[2]);
+    __m256i r_012345 = _mm256_add_epi16(r_0123, r_45);
+    return r_012345;
 }
 
 static INLINE __m256i x_convolve_8tap_avx2(const __m256i data, const __m256i coeffs[4],
                                            const __m256i filt[4]) {
     __m256i ss[4];
-
+//#ifndef VNNI_SUPPORT
+    
     ss[0] = _mm256_shuffle_epi8(data, filt[0]);
     ss[1] = _mm256_shuffle_epi8(data, filt[1]);
     ss[2] = _mm256_shuffle_epi8(data, filt[2]);
     ss[3] = _mm256_shuffle_epi8(data, filt[3]);
+    __m256i res = convolve_8tap_avx2(ss, coeffs);
 
     return convolve_8tap_avx2(ss, coeffs);
+/*
+    __m256i filt_256[3], new_coeffs[2], ss1[3];
+    
+    filt_256[0] = _mm256_loadu_si256((__m256i const *)filt1_global_vnni);
+    filt_256[1] = _mm256_loadu_si256((__m256i const *)filt2_global_vnni);
+    filt_256[2] = _mm256_loadu_si256((__m256i const *)filt4_global_vnni);
+    
+    new_coeffs[0] = _mm256_unpacklo_epi16(coeffs[0], coeffs[1]);  // 0123
+    new_coeffs[1] = _mm256_unpacklo_epi16(coeffs[2], coeffs[3]);  // 4567
+    new_coeffs[2] = _mm256_unpackhi_epi16(coeffs[0], coeffs[1]);  // 0123
+    new_coeffs[3] = _mm256_unpackhi_epi16(coeffs[2], coeffs[3]);  // 4567
+
+    ss1[0] = _mm256_shuffle_epi8(data, filt_256[0]); // 0123
+    ss1[1] = _mm256_shuffle_epi8(data, filt_256[1]); // 4567
+    ss1[2] = _mm256_shuffle_epi8(data, filt_256[2]); // 89AB
+
+    __m256i r_0123 = _mm256_dpbusd_epi32(_mm256_set1_epi32(0), ss1[0], new_coeffs[0]);   // 0123(0123 coef) + 0 
+    __m256i r_01234567 = _mm256_dpbusd_epi32(r_0123, ss1[1], new_coeffs[1]);             // 0123(0123 coef) + 4567(4567 coef)
+    
+    __m256i r_4567 = _mm256_dpbusd_epi32(_mm256_set1_epi32(0), ss1[1], new_coeffs[0]);   // 4567(0123 coef)
+    __m256i r_456789AB = _mm256_dpbusd_epi32(r_4567, ss1[2], new_coeffs[1]);             // 4567(0123 coef) + 89AB(4567 coef)
+    __m256i r_total = _mm256_setr_m128i(_mm256_cvtepi32_epi16(r_01234567), _mm256_cvtepi32_epi16(r_456789AB));
+    r_total = _mm256_permute4x64_epi64(r_total, 0xD8);
+    //return r_total;
+
+    if(_mm256_cmp_epu16_mask(r_total, res, 0x4)){
+        print_256(res,"res");
+        print_256(r_total,"r_total");
+        while(1){}
+     }
+    return res;
+*/
+
+/*#else
+
+    __m256i filt_256[3], new_coeffs[2], ss1[3];
+    filt_256[0] = _mm256_loadu_si256((__m256i const *)filt1_global_avx);
+    filt_256[1] = _mm256_loadu_si256((__m256i const *)filt2_global_avx);
+    filt_256[2] = _mm256_loadu_si256((__m256i const *)filt4_global_avx);
+
+    new_coeffs[0] = _mm256_unpacklo_epi16(coeffs[0], coeffs[1]);  // 0123
+    new_coeffs[1] = _mm256_unpacklo_epi16(coeffs[2], coeffs[3]);  // 4567
+    new_coeffs[2] = _mm256_unpackhi_epi16(coeffs[0], coeffs[1]);  // 0123
+    new_coeffs[3] = _mm256_unpackhi_epi16(coeffs[2], coeffs[3]);  // 4567
+
+    ss1[0] = _mm256_shuffle_epi8(data, filt_256[0]); // 0123
+    ss1[1] = _mm256_shuffle_epi8(data, filt_256[1]); // 4567
+    ss1[2] = _mm256_shuffle_epi8(data, filt_256[2]); // 89AB
+ 
+    __m256i r_0123 = _mm256_dpbusd_epi32(_mm256_set1_epi32(0), ss1[0], new_coeffs[0]);   // 0123(0123 coef) + 0 
+    __m256i r_01234567 = _mm256_dpbusd_epi32(r_0123, ss1[1], new_coeffs[1]);             // 0123(0123 coef) + 4567(4567 coef)
+    
+    __m256i r_4567 = _mm256_dpbusd_epi32(_mm256_set1_epi32(0), ss1[1], new_coeffs[0]);   // 4567(0123 coef)
+    __m256i r_456789AB = _mm256_dpbusd_epi32(r_4567, ss1[2], new_coeffs[1]);             // 4567(0123 coef) + 89AB(4567 coef)
+    __m256i r_total = _mm256_setr_m128i(_mm256_cvtepi32_epi16(r_01234567), _mm256_cvtepi32_epi16(r_456789AB));
+    r_total = _mm256_permute4x64_epi64(r_total, 0xD8);
+    return r_total;
+
+#endif*/
+}
+static INLINE __m256i x_convolve_8tap_avx2_vnni(const __m256i data, const __m256i coeffs[4],
+                                           const __m256i filt[4]) {
+    __m256i ss[4];
+    ss[0] = _mm256_shuffle_epi8(data, filt[0]); // 0123
+    ss[1] = _mm256_shuffle_epi8(data, filt[1]); // 4567
+    ss[2] = _mm256_shuffle_epi8(data, filt[2]); // 89AB
+
+    __m256i r_0123 = _mm256_dpbusd_epi32(_mm256_set1_epi32(0), ss[0], coeffs[0]);   // 0123(0123 coef) + 0 
+    __m256i r_01234567 = _mm256_dpbusd_epi32(r_0123, ss[1], coeffs[1]);             // 0123(0123 coef) + 4567(4567 coef)
+
+    __m256i r_4567 = _mm256_dpbusd_epi32(_mm256_set1_epi32(0), ss[1], coeffs[0]);   // 4567(0123 coef)
+    __m256i r_456789AB = _mm256_dpbusd_epi32(r_4567, ss[2], coeffs[1]);             // 4567(0123 coef) + 89AB(4567 coef)
+    
+    __m256i r_total = _mm256_setr_m128i(_mm256_cvtepi32_epi16(r_01234567), _mm256_cvtepi32_epi16(r_456789AB));
+    r_total = _mm256_permute4x64_epi64(r_total, 0xD8);
+    return r_total;
 }
 
 static INLINE __m256i sr_y_round_avx2(const __m256i src) {
@@ -1028,10 +1344,49 @@ static INLINE void x_convolve_6tap_32_avx2(const uint8_t *const src, const __m25
     r[1] = x_convolve_6tap_avx2(s1_256, coeffs, filt);
 }
 
+static INLINE __m256i x_convolve_6tap_8x2_avx2_vnni(const uint8_t *const src, const ptrdiff_t stride,
+                                               const __m256i coeffs[3], const __m256i filt[3]) {
+    const __m256i s_256 = loadu_8bit_16x2_avx2(src, stride);
+    return x_convolve_6tap_avx2_vnni(s_256, coeffs, filt);
+}
+
+static INLINE void x_convolve_6tap_16x2_avx2_vnni(const uint8_t *const src, const int32_t src_stride,
+                                             const __m256i coeffs[3], const __m256i filt[3],
+                                             __m256i r[2]) {
+    r[0] = x_convolve_6tap_8x2_avx2_vnni(src + 0, src_stride, coeffs, filt);
+    r[1] = x_convolve_6tap_8x2_avx2_vnni(src + 8, src_stride, coeffs, filt);
+}
+
+static INLINE void x_convolve_6tap_32_avx2_vnni(const uint8_t *const src, const __m256i coeffs[3],
+                                           const __m256i filt[3], __m256i r[2]) {
+    const __m256i s0_256 = _mm256_loadu_si256((__m256i *)src);
+    const __m256i s1_256 = _mm256_loadu_si256((__m256i *)(src + 8));
+
+    //#ifndef VNNI_SUPPORT
+        r[0] = x_convolve_6tap_avx2_vnni(s0_256, coeffs, filt);
+        r[1] = x_convolve_6tap_avx2_vnni(s1_256, coeffs, filt);
+    /*#else
+        __m256i s0, s1;
+        s0 = _mm256_permute2x128_si256(s0_256, s1_256, 0x20);
+        s1 = _mm256_permute2x128_si256(s0_256, s1_256, 0x31);
+
+        s0 = x_convolve_6tap_avx2_vnni(s0, coeffs, filt);
+        s1 = x_convolve_6tap_avx2_vnni(s1, coeffs, filt);
+
+        r[0] = _mm256_permute2x128_si256(s0, s1, 0x20);
+        r[1] = _mm256_permute2x128_si256(s0, s1, 0x31);
+    #endif*/
+}
+
 static INLINE __m256i x_convolve_8tap_8x2_avx2(const uint8_t *const src, const ptrdiff_t stride,
                                                const __m256i coeffs[4], const __m256i filt[4]) {
     const __m256i s_256 = loadu_8bit_16x2_avx2(src, stride);
     return x_convolve_8tap_avx2(s_256, coeffs, filt);
+}
+static INLINE __m256i x_convolve_8tap_8x2_avx2_vnni(const uint8_t *const src, const ptrdiff_t stride,
+                                               const __m256i coeffs[4], const __m256i filt[4]) {
+    const __m256i s_256 = loadu_8bit_16x2_avx2(src, stride);
+    return x_convolve_8tap_avx2_vnni(s_256, coeffs, filt);
 }
 
 SIMD_INLINE void x_convolve_8tap_16x2_avx2(const uint8_t *const src, const int32_t src_stride,
@@ -1039,6 +1394,12 @@ SIMD_INLINE void x_convolve_8tap_16x2_avx2(const uint8_t *const src, const int32
                                            __m256i r[2]) {
     r[0] = x_convolve_8tap_8x2_avx2(src + 0, src_stride, coeffs, filt);
     r[1] = x_convolve_8tap_8x2_avx2(src + 8, src_stride, coeffs, filt);
+}
+SIMD_INLINE void x_convolve_8tap_16x2_avx2_vnni(const uint8_t *const src, const int32_t src_stride,
+                                           const __m256i coeffs[4], const __m256i filt[4],
+                                           __m256i r[2]) {
+    r[0] = x_convolve_8tap_8x2_avx2_vnni(src + 0, src_stride, coeffs, filt);
+    r[1] = x_convolve_8tap_8x2_avx2_vnni(src + 8, src_stride, coeffs, filt);
 }
 
 SIMD_INLINE void x_convolve_8tap_32_avx2(const uint8_t *const src, const __m256i coeffs[4],
@@ -1048,6 +1409,14 @@ SIMD_INLINE void x_convolve_8tap_32_avx2(const uint8_t *const src, const __m256i
 
     r[0] = x_convolve_8tap_avx2(s0_256, coeffs, filt);
     r[1] = x_convolve_8tap_avx2(s1_256, coeffs, filt);
+}
+SIMD_INLINE void x_convolve_8tap_32_avx2_vnni(const uint8_t *const src, const __m256i coeffs[4],
+                                         const __m256i filt[4], __m256i r[2]) {
+    const __m256i s0_256 = _mm256_loadu_si256((__m256i *)src);
+    const __m256i s1_256 = _mm256_loadu_si256((__m256i *)(src + 8));
+
+    r[0] = x_convolve_8tap_avx2_vnni(s0_256, coeffs, filt);
+    r[1] = x_convolve_8tap_avx2_vnni(s1_256, coeffs, filt);
 }
 
 static INLINE __m128i y_convolve_2tap_2x2_ssse3(const uint8_t *const src, const ptrdiff_t stride,
@@ -1327,12 +1696,32 @@ static INLINE void xy_x_6tap_32_avx2(const uint8_t *const src, const __m256i coe
     _mm256_storeu_si256((__m256i *)dst, d0);
     _mm256_storeu_si256((__m256i *)(dst + 16), d1);
 }
+static INLINE void xy_x_6tap_32_avx2_vnni(const uint8_t *const src, const __m256i coeffs[3],
+                                     const __m256i filt[3], int16_t *const dst) {
+    __m256i r[2];
+
+    x_convolve_6tap_32_avx2_vnni(src, coeffs, filt, r);
+    const __m256i d0 = xy_x_round_avx2(r[0]);
+    const __m256i d1 = xy_x_round_avx2(r[1]);
+    _mm256_storeu_si256((__m256i *)dst, d0);
+    _mm256_storeu_si256((__m256i *)(dst + 16), d1);
+}
 
 static INLINE void xy_x_8tap_32_avx2(const uint8_t *const src, const __m256i coeffs[4],
                                      const __m256i filt[4], int16_t *const dst) {
     __m256i r[2];
 
     x_convolve_8tap_32_avx2(src, coeffs, filt, r);
+    const __m256i d0 = xy_x_round_avx2(r[0]);
+    const __m256i d1 = xy_x_round_avx2(r[1]);
+    _mm256_storeu_si256((__m256i *)dst, d0);
+    _mm256_storeu_si256((__m256i *)(dst + 16), d1);
+}
+static INLINE void xy_x_8tap_32_avx2_vnni(const uint8_t *const src, const __m256i coeffs[4],
+                                     const __m256i filt[4], int16_t *const dst) {
+    __m256i r[2];
+
+    x_convolve_8tap_32_avx2_vnni(src, coeffs, filt, r);
     const __m256i d0 = xy_x_round_avx2(r[0]);
     const __m256i d1 = xy_x_round_avx2(r[1]);
     _mm256_storeu_si256((__m256i *)dst, d0);

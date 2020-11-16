@@ -107,7 +107,7 @@ static void convolve_2d_sr_hor_2tap_avx512(const uint8_t *const src, const int32
         }
     }
 }
-
+//int w8, w16, w32, w64, w128, n = 0;
 static void convolve_2d_sr_hor_6tap_avx512(const uint8_t *const src, const int32_t src_stride,
                                            const int32_t w, const int32_t h,
                                            const InterpFilterParams *const filter_params_x,
@@ -115,6 +115,10 @@ static void convolve_2d_sr_hor_6tap_avx512(const uint8_t *const src, const int32
     const uint8_t *src_ptr = src - 2;
     int32_t        y       = h;
     int16_t *      im      = im_block;
+
+    //if(w == 8){w8++;}if(w == 16){w16++;}if(w == 32){w32++;}if(w == 64){w64 ++;}if(w == 128){ w128++;}
+    //n++;
+    //if(n%1000){printf("w8 %d, w16 %d, w32 %d, w64 %d, w128 %d\n", w8, w16, w32, w64, w128);}
 
     if (w <= 16) {
         __m256i coeffs_256[3], filt_256[3];

@@ -132,7 +132,7 @@ void convolve_2d_sr_hor_4tap_ssse3(const uint8_t *const src, const int32_t src_s
         } while (y);
     }
 }
-
+//int w8, w16, w32, w64, w128, n = 0;
 static void convolve_2d_sr_hor_6tap_avx2(const uint8_t *const src, const int32_t src_stride,
                                          const int32_t w, const int32_t h,
                                          const InterpFilterParams *const filter_params_x,
@@ -141,16 +141,29 @@ static void convolve_2d_sr_hor_6tap_avx2(const uint8_t *const src, const int32_t
     int32_t        y       = h;
     int16_t *      im      = im_block;
     __m256i        coeffs_256[3], filt_256[3];
-
+#ifndef VNNI_SUPPORT
     filt_256[0] = _mm256_loadu_si256((__m256i const *)filt1_global_avx);
     filt_256[1] = _mm256_loadu_si256((__m256i const *)filt2_global_avx);
     filt_256[2] = _mm256_loadu_si256((__m256i const *)filt3_global_avx);
-
     prepare_half_coeffs_6tap_avx2(filter_params_x, subpel_x_q4, coeffs_256);
+#else
+    filt_256[0] = _mm256_loadu_si256((__m256i const *)filt1_global_vnni);
+    filt_256[1] = _mm256_loadu_si256((__m256i const *)filt2_global_vnni);
+    filt_256[2] = _mm256_loadu_si256((__m256i const *)filt3_global_vnni);
+    prepare_half_coeffs_6tap_avx2_vnni(filter_params_x, subpel_x_q4, coeffs_256);
+#endif
+    //prepare_half_coeffs_6tap_avx2(filter_params_x, subpel_x_q4, coeffs_256);
 
+    //if(w == 8){w8++;}if(w == 16){w16++;}if(w == 32){w32++;}if(w == 64){w64 ++;}if(w == 128){ w128++;}
+    //n++;
+    //if(n%1000){printf("w8 %d, w16 %d, w32 %d, w64 %d, w128 %d\n", w8, w16, w32, w64, w128);}
     if (w == 8) {
         do {
+            #ifndef VNNI_SUPPORT
             const __m256i res = x_convolve_6tap_8x2_avx2(src_ptr, src_stride, coeffs_256, filt_256);
+            #else
+            const __m256i res = x_convolve_6tap_8x2_avx2_vnni(src_ptr, src_stride, coeffs_256, filt_256);
+            #endif
             xy_x_round_store_8x2_avx2(res, im);
             src_ptr += 2 * src_stride;
             im += 2 * 8;
@@ -159,8 +172,11 @@ static void convolve_2d_sr_hor_6tap_avx2(const uint8_t *const src, const int32_t
     } else if (w == 16) {
         do {
             __m256i r[2];
-
+            #ifndef VNNI_SUPPORT
             x_convolve_6tap_16x2_avx2(src_ptr, src_stride, coeffs_256, filt_256, r);
+            #else
+            x_convolve_6tap_16x2_avx2_vnni(src_ptr, src_stride, coeffs_256, filt_256, r);
+            #endif
             xy_x_round_store_32_avx2(r, im);
             src_ptr += 2 * src_stride;
             im += 2 * 16;
@@ -168,14 +184,24 @@ static void convolve_2d_sr_hor_6tap_avx2(const uint8_t *const src, const int32_t
         } while (y);
     } else if (w == 32) {
         do {
+            #ifndef VNNI_SUPPORT 
             xy_x_6tap_32_avx2(src_ptr, coeffs_256, filt_256, im);
+            #else
+            xy_x_6tap_32_avx2_vnni(src_ptr, coeffs_256, filt_256, im);
+            #endif
             src_ptr += src_stride;
             im += 32;
         } while (--y);
     } else if (w == 64) {
         do {
+            // Not Call //
+            #ifndef VNNI_SUPPORT
             xy_x_6tap_32_avx2(src_ptr, coeffs_256, filt_256, im);
             xy_x_6tap_32_avx2(src_ptr + 32, coeffs_256, filt_256, im + 32);
+            #else
+            xy_x_6tap_32_avx2_vnni(src_ptr, coeffs_256, filt_256, im);
+            xy_x_6tap_32_avx2_vnni(src_ptr + 32, coeffs_256, filt_256, im + 32);
+            #endif
             src_ptr += src_stride;
             im += 64;
         } while (--y);
@@ -183,16 +209,24 @@ static void convolve_2d_sr_hor_6tap_avx2(const uint8_t *const src, const int32_t
         assert(w == 128);
 
         do {
+            // Not Call //
+            #ifndef VNNI_SUPPORT
             xy_x_6tap_32_avx2(src_ptr, coeffs_256, filt_256, im);
             xy_x_6tap_32_avx2(src_ptr + 32, coeffs_256, filt_256, im + 32);
             xy_x_6tap_32_avx2(src_ptr + 64, coeffs_256, filt_256, im + 64);
             xy_x_6tap_32_avx2(src_ptr + 96, coeffs_256, filt_256, im + 96);
+            #else
+            xy_x_6tap_32_avx2_vnni(src_ptr, coeffs_256, filt_256, im);
+            xy_x_6tap_32_avx2_vnni(src_ptr + 32, coeffs_256, filt_256, im + 32);
+            xy_x_6tap_32_avx2_vnni(src_ptr + 64, coeffs_256, filt_256, im + 64);
+            xy_x_6tap_32_avx2_vnni(src_ptr + 96, coeffs_256, filt_256, im + 96);
+            #endif
             src_ptr += src_stride;
             im += 128;
         } while (--y);
     }
 }
-
+//int w8, w16, w32, w64, w128, n = 0;
 static void convolve_2d_sr_hor_8tap_avx2(const uint8_t *const src, const int32_t src_stride,
                                          const int32_t w, const int32_t h,
                                          const InterpFilterParams *const filter_params_x,
@@ -201,17 +235,32 @@ static void convolve_2d_sr_hor_8tap_avx2(const uint8_t *const src, const int32_t
     int32_t        y       = h;
     int16_t *      im      = im_block;
     __m256i        coeffs_256[4], filt_256[4];
+    
+    //if(w == 8){w8++;}if(w == 16){w16++;}if(w == 32){w32++;}if(w == 64){w64 ++;}if(w == 128){ w128++;}
+    //n++;
+    //if(n%1000){printf("w8 %d, w16 %d, w32 %d, w64 %d, w128 %d\n", w8, w16, w32, w64, w128);}
 
+#ifndef VNNI_SUPPORT
     filt_256[0] = _mm256_loadu_si256((__m256i const *)filt1_global_avx);
     filt_256[1] = _mm256_loadu_si256((__m256i const *)filt2_global_avx);
     filt_256[2] = _mm256_loadu_si256((__m256i const *)filt3_global_avx);
     filt_256[3] = _mm256_loadu_si256((__m256i const *)filt4_global_avx);
-
     prepare_half_coeffs_8tap_avx2(filter_params_x, subpel_x_q4, coeffs_256);
+#else
+    filt_256[0] = _mm256_loadu_si256((__m256i const *)filt1_global_vnni);
+    filt_256[1] = _mm256_loadu_si256((__m256i const *)filt2_global_vnni);
+    filt_256[2] = _mm256_loadu_si256((__m256i const *)filt4_global_vnni);
+    filt_256[3] = _mm256_loadu_si256((__m256i const *)filt4_global_vnni);
+    prepare_half_coeffs_8tap_avx2_vnni(filter_params_x, subpel_x_q4, coeffs_256);
+#endif
 
     if (w == 8) {
         do {
+            #ifndef VNNI_SUPPORT
             const __m256i res = x_convolve_8tap_8x2_avx2(src_ptr, src_stride, coeffs_256, filt_256);
+            #else
+            const __m256i res = x_convolve_8tap_8x2_avx2_vnni(src_ptr, src_stride, coeffs_256, filt_256); // !!!!!!!!!!!!!!!!!
+            #endif
             xy_x_round_store_8x2_avx2(res, im);
             src_ptr += 2 * src_stride;
             im += 2 * 8;
@@ -220,8 +269,11 @@ static void convolve_2d_sr_hor_8tap_avx2(const uint8_t *const src, const int32_t
     } else if (w == 16) {
         do {
             __m256i r[2];
-
+            #ifndef VNNI_SUPPORT
             x_convolve_8tap_16x2_avx2(src_ptr, src_stride, coeffs_256, filt_256, r);
+            #else
+            x_convolve_8tap_16x2_avx2_vnni(src_ptr, src_stride, coeffs_256, filt_256, r);
+            #endif
             xy_x_round_store_32_avx2(r, im);
             src_ptr += 2 * src_stride;
             im += 2 * 16;
@@ -229,14 +281,24 @@ static void convolve_2d_sr_hor_8tap_avx2(const uint8_t *const src, const int32_t
         } while (y);
     } else if (w == 32) {
         do {
+            #ifndef VNNI_SUPPORT
             xy_x_8tap_32_avx2(src_ptr, coeffs_256, filt_256, im);
+            #else   
+            xy_x_8tap_32_avx2_vnni(src_ptr, coeffs_256, filt_256, im);
+
+            #endif
             src_ptr += src_stride;
             im += 32;
         } while (--y);
     } else if (w == 64) {
         do {
+            #ifndef VNNI_SUPPORT
             xy_x_8tap_32_avx2(src_ptr, coeffs_256, filt_256, im);
             xy_x_8tap_32_avx2(src_ptr + 32, coeffs_256, filt_256, im + 32);
+            #else
+            xy_x_8tap_32_avx2_vnni(src_ptr, coeffs_256, filt_256, im);
+            xy_x_8tap_32_avx2_vnni(src_ptr + 32, coeffs_256, filt_256, im + 32);
+            #endif
             src_ptr += src_stride;
             im += 64;
         } while (--y);
@@ -244,10 +306,17 @@ static void convolve_2d_sr_hor_8tap_avx2(const uint8_t *const src, const int32_t
         assert(w == 128);
 
         do {
+            #ifndef VNNI_SUPPORT
             xy_x_8tap_32_avx2(src_ptr, coeffs_256, filt_256, im);
             xy_x_8tap_32_avx2(src_ptr + 32, coeffs_256, filt_256, im + 32);
             xy_x_8tap_32_avx2(src_ptr + 64, coeffs_256, filt_256, im + 64);
             xy_x_8tap_32_avx2(src_ptr + 96, coeffs_256, filt_256, im + 96);
+            #else
+            xy_x_8tap_32_avx2_vnni(src_ptr, coeffs_256, filt_256, im);
+            xy_x_8tap_32_avx2_vnni(src_ptr + 32, coeffs_256, filt_256, im + 32);
+            xy_x_8tap_32_avx2_vnni(src_ptr + 64, coeffs_256, filt_256, im + 64);
+            xy_x_8tap_32_avx2_vnni(src_ptr + 96, coeffs_256, filt_256, im + 96);
+            #endif
             src_ptr += src_stride;
             im += 128;
         } while (--y);

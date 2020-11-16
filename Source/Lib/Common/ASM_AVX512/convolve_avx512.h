@@ -75,13 +75,18 @@ static INLINE void populate_coeffs_4tap_avx512(const __m128i coeffs_128, __m512i
 
 static INLINE void populate_coeffs_6tap_avx512(const __m128i coeffs_128, __m512i coeffs[3]) {
     const __m512i coeffs_512 = svt_mm512_broadcast_i64x2(coeffs_128);
-
+//#ifndef VNNI_SUPPORT
     // coeffs 1 2 1 2 1 2 1 2
     coeffs[0] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi16(0x0402u));
     // coeffs 3 4 3 4 3 4 3 4
     coeffs[1] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi16(0x0806u));
     // coeffs 5 6 5 6 5 6 5 6
     coeffs[2] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi16(0x0C0Au));
+/*#else
+    coeffs[0] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi32(0x08060402u));
+    coeffs[1] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi32(0x08060402u));
+    coeffs[2] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi16(0x0C0Au));
+#endif*/
 }
 
 static INLINE void populate_coeffs_8tap_avx512(const __m128i coeffs_128, __m512i coeffs[4]) {
@@ -534,13 +539,32 @@ static INLINE __m512i x_convolve_4tap_avx512(const __m512i data, const __m512i c
 
 static INLINE __m512i x_convolve_6tap_avx512(const __m512i data, const __m512i coeffs[3],
                                              const __m512i filt[3]) {
+//#ifndef VNNI_SUPPORT                                                 
     __m512i ss[3];
 
     ss[0] = _mm512_shuffle_epi8(data, filt[0]);
     ss[1] = _mm512_shuffle_epi8(data, filt[1]);
     ss[2] = _mm512_shuffle_epi8(data, filt[2]);
 
+    //__m512i res = convolve_6tap_avx512(ss, coeffs);
     return convolve_6tap_avx512(ss, coeffs);
+/*#else
+    __m512i ss1[3];
+    
+    ss1[0] = _mm512_shuffle_epi8(data, filt[0]);     // 4 by 4
+    ss1[1] = _mm512_shuffle_epi8(data, filt[1]);
+    ss1[2] = _mm512_shuffle_epi8(data, filt[2]);     // last 2
+
+    __m512i res0 = _mm512_dpbusd_epi32( _mm512_set1_epi32(0), ss1[0], coeffs[0]);
+    __m512i res1 = _mm512_dpbusd_epi32( _mm512_set1_epi32(0), ss1[1], coeffs[1]);
+    
+    __m256i r_0123 = _mm512_setr_m128i( _mm512_cvtepi32_epi16(res0), _mm512_cvtepi32_epi16(res1));
+    _mm512_setr_m256i(_mm512_cvtepi32_epi16(res0), _mm512_cvtepi32_epi16(res1));
+    r_0123 = _mm256_permute4x64_epi64(r_0123, 0xD8);
+    __m256i res45 = _mm256_maddubs_epi16(ss1[2], coeffs[2]);
+    __m256i res00 = _mm256_add_epi16(r_0123, res45);
+
+#endif*/
 }
 
 static INLINE __m512i x_convolve_8tap_avx512(const __m512i data, const __m512i coeffs[4],

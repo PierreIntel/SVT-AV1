@@ -22,7 +22,12 @@ include_directories(${PROJECT_SOURCE_DIR}/Source/API/
     ${PROJECT_SOURCE_DIR}/Source/Lib/Common/ASM_AVX512/)
 link_directories(${PROJECT_SOURCE_DIR}/Source/Lib/Common/ASM_SSSE3/)
 
-set(flags_to_test -mavx2)
+set(flags_to_test -mavx2 -mavx512f
+    -mavx512bw
+    -mavx512dq
+    -mavx512vl
+    -mavx512vnni
+    -mavx512vbmi)
 
 if(CMAKE_C_COMPILER_ID STREQUAL "Intel")
     if(WIN32)

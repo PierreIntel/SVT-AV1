@@ -27,7 +27,8 @@ set(flags_to_test
     -mavx512f
     -mavx512bw
     -mavx512dq
-    -mavx512vl)
+    -mavx512vl
+    -mavx512vnni)
 
 if(MSVC)
     list(APPEND flags_to_test /arch:AVX2)
