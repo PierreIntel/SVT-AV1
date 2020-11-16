@@ -704,6 +704,15 @@ static INLINE __m128i convolve16_6tap_sse2(const __m128i ss[3], const __m128i co
     const __m128i res_0123 = _mm_add_epi32(res_01, res_23);
     return _mm_add_epi32(res_0123, res_45);
 }
+/*
+static INLINE __m128i convolve16_6tap_sse2_vnni(const __m128i ss[3], const __m128i coeffs[3]) {
+    const __m128i res_0123   = _mm_dpbusd_epi32(_mm_setzero_si128(), _mm_unpacklo_epi16(ss[0], ss[1]), coeffs[0]);
+    const __m128i res_23   = _mm_dpbusd_epi32(_mm_setzero_si128(), _mm_unpacklo_epi16(ss[0], ss[1]), coeffs[0]);
+    
+    //const __m128i res_45   = _mm_madd_epi16(ss[2], coeffs[2]);
+    //const __m128i res_0123 = _mm_add_epi32(res_01, res_23);
+    return ;//_mm_add_epi32(res_0123, res_45);
+}*/
 
 static INLINE __m128i convolve16_8tap_sse2(const __m128i ss[4], const __m128i coeffs[4]) {
     const __m128i res_01   = _mm_madd_epi16(ss[0], coeffs[0]);
@@ -874,7 +883,7 @@ static INLINE __m256i x_convolve_8tap_avx2(const __m256i data, const __m256i coe
     ss[1] = _mm256_shuffle_epi8(data, filt[1]);
     ss[2] = _mm256_shuffle_epi8(data, filt[2]);
     ss[3] = _mm256_shuffle_epi8(data, filt[3]);
-    __m256i res = convolve_8tap_avx2(ss, coeffs);
+    //__m256i res = convolve_8tap_avx2(ss, coeffs);
 
     return convolve_8tap_avx2(ss, coeffs);
 /*
