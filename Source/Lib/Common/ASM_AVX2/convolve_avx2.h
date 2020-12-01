@@ -23,8 +23,9 @@
 #include <stdio.h>
 #include <immintrin.h>
 
+
 //#define VNNI_SUPPORT
-#define VNNI_1V
+//#define VNNI_1V
 //#define NO_PRINT
 
 static INLINE void print_512(__m512i vec, char* str){
@@ -202,7 +203,7 @@ static INLINE void populate_coeffs_6tap_avx2_vnni(const __m128i coeffs_128, __m2
     const __m256i coeffs_256 = _mm256_broadcastsi128_si256(coeffs_128);
 
     coeffs[0] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi32(0x08060402u));
-    coeffs[1] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi32(0x08060402u));
+    coeffs[1] = coeffs[0];
     coeffs[2] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi16(0x0C0Au));
 }
 
@@ -217,22 +218,14 @@ static INLINE void populate_coeffs_8tap_avx2(const __m128i coeffs_128, __m256i c
     coeffs[2] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi16(0x0a08u));
     // coeffs 6 7 6 7 6 7 6 7
     coeffs[3] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi16(0x0e0cu));
-    /*print_256(coeffs[0], "c0");
-    print_256(coeffs[1], "c1");
-    print_256(coeffs[2], "c2");
-    print_256(coeffs[3], "c3");while(1){}*/
 }
 static INLINE void populate_coeffs_8tap_avx2_vnni(const __m128i coeffs_128, __m256i coeffs[4]) {
     const __m256i coeffs_256 = _mm256_broadcastsi128_si256(coeffs_128);
 
     coeffs[0] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi32(0x06040200u));
     coeffs[1] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi32(0x0e0c0a08u));
-    coeffs[2] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi32(0x06040200u));
-    coeffs[3] = _mm256_shuffle_epi8(coeffs_256, _mm256_set1_epi32(0x0e0c0a08u));
-    /*print_256(coeffs[0], "c0");
-    print_256(coeffs[1], "c1");
-    print_256(coeffs[2], "c2");
-    print_256(coeffs[3], "c3");while(1){}*/
+    coeffs[2] = coeffs[0];
+    coeffs[3] = coeffs[1];
 }
 
 static INLINE void prepare_half_coeffs_2tap_ssse3(const InterpFilterParams *const filter_params,
@@ -712,8 +705,9 @@ static INLINE __m256i convolve_6tap_avx2(const __m256i ss[3], const __m256i coef
 static INLINE __m256i convolve_6tap_avx2_vnni(const __m256i ss[3], const __m256i coeffs[3]) {
     const __m256i res_0123_0   = _mm256_dpbusd_epi32(_mm256_setzero_si256(), ss[0], coeffs[0]);
     const __m256i res_0123_4   = _mm256_dpbusd_epi32(_mm256_setzero_si256(), ss[1], coeffs[1]);
+    const __m256i res_45 = _mm256_maddubs_epi16(ss[2], coeffs[2]);
     const __m256i res_0123 = _mm256_packus_epi32(res_0123_0, res_0123_4);
-    return _mm256_add_epi16(res_0123, _mm256_maddubs_epi16(ss[2], coeffs[2]));
+    return _mm256_add_epi16(res_0123, res_45);
 }
 
 static INLINE __m256i convolve_8tap_avx2(const __m256i ss[4], const __m256i coeffs[4]) {
@@ -723,31 +717,7 @@ static INLINE __m256i convolve_8tap_avx2(const __m256i ss[4], const __m256i coef
     const __m256i res_67   = _mm256_maddubs_epi16(ss[3], coeffs[3]);
     const __m256i res_0145 = _mm256_add_epi16(res_01, res_45);
     const __m256i res_2367 = _mm256_add_epi16(res_23, res_67);
-    //__m256i res = _mm256_add_epi16(res_0145, res_2367);
     return _mm256_add_epi16(res_0145, res_2367);
-
-    /*__m256i vnni[6], new_coeffs[4];
-    vnni[0] = _mm256_unpacklo_epi16(ss[0], ss[1]);  //0000  0-3
-    vnni[1] = _mm256_unpackhi_epi16(ss[0], ss[1]);  //4444  0-3
-    vnni[2] = _mm256_unpacklo_epi16(ss[2], ss[3]);
-    vnni[3] = _mm256_unpackhi_epi16(ss[2], ss[3]);
-    vnni[4] = ss[2];
-
-    
-    new_coeffs[0] = _mm256_unpacklo_epi16(coeffs[0], coeffs[1]);  // 0123
-    new_coeffs[1] = _mm256_unpacklo_epi16(coeffs[2], coeffs[3]);  // 4567
-    new_coeffs[2] = _mm256_unpackhi_epi16(coeffs[0], coeffs[1]);  // 0123
-    new_coeffs[3] = _mm256_unpackhi_epi16(coeffs[2], coeffs[3]);  // 4567
-
-    const __m256i res_0123_0   = _mm256_dpbusd_epi32(_mm256_setzero_si256(), vnni[0], new_coeffs[0]);
-    const __m256i res_4567_0   = _mm256_dpbusd_epi32(_mm256_setzero_si256(), vnni[2], new_coeffs[1]);
-    const __m256i res_0123_1 = _mm256_dpbusd_epi32(res_0123_0, vnni[2], new_coeffs[0]);
-    const __m256i res_4567_1 = _mm256_dpbusd_epi32(res_4567_0, vnni[3], new_coeffs[1]);
-
-    __m256i r = _mm256_packus_epi32(res_0123_1, res_4567_1);
-
-    return res;*/
-    
 }
 static INLINE __m256i convolve_8tap_avx2_vnni(const __m256i ss[6], const __m256i coeffs[4]) {
     const __m256i res_0123_0   = _mm256_dpbusd_epi32(_mm256_setzero_si256(), ss[0], coeffs[0]);
@@ -790,6 +760,13 @@ static INLINE __m128i convolve16_8tap_sse2(const __m128i ss[4], const __m128i co
     return _mm_add_epi32(res_0123, res_4567);
 }
 static INLINE __m128i convolve16_8tap_sse2_vnni(const __m128i ss[4], const __m128i coeffs[4]) {
+/* TO TEST
+    const __m128i res_01 = _mm_dpwssd_epi32(_mm_setzero_si128(), ss[0], coeffs[0]);
+    const __m128i res_23 = _mm_dpwssd_epi32(_mm_setzero_si128(), ss[1], coeffs[1]);
+    const __m128i res_0145 = _mm_dpwssd_epi32(res_01, ss[2], coeffs[2]);
+    const __m128i res_2367 = _mm_dpwssd_epi32(res_23, ss[3], coeffs[3]);
+    return _mm_add_epi32(res_0145, res_2367);
+*/
     const __m128i res_01 = _mm_dpwssd_epi32(_mm_setzero_si128(), ss[0], coeffs[0]);
     const __m128i res_23 = _mm_dpwssd_epi32(res_01, ss[1], coeffs[1]);
     const __m128i res_45 = _mm_dpwssd_epi32(res_23, ss[2], coeffs[2]);
@@ -833,6 +810,7 @@ static INLINE __m256i convolve16_8tap_avx2(const __m256i ss[4], const __m256i co
     return _mm256_add_epi32(res_0123, res_4567);
 }
 static INLINE __m256i convolve16_8tap_avx2_vnni(const __m256i ss[4], const __m256i coeffs[4]) {
+    /* 2d version to test */
     const __m256i res_01   = _mm256_dpwssd_epi32(_mm256_setzero_si256(), ss[0], coeffs[0]);
     const __m256i res_23   = _mm256_dpwssd_epi32(res_01, ss[1], coeffs[1]);
     const __m256i res_45   = _mm256_dpwssd_epi32(res_23, ss[2], coeffs[2]);
@@ -851,7 +829,6 @@ static INLINE __m256i x_convolve_4tap_avx2(const __m256i data, const __m256i coe
 
 static INLINE __m256i x_convolve_6tap_avx2(const __m256i data, const __m256i coeffs[3],
                                            const __m256i filt[3]) {
-//#ifndef VNNI_SUPPORT
     __m256i ss[3];
 
     ss[0] = _mm256_shuffle_epi8(data, filt[0]);
@@ -859,44 +836,6 @@ static INLINE __m256i x_convolve_6tap_avx2(const __m256i data, const __m256i coe
     ss[2] = _mm256_shuffle_epi8(data, filt[2]);
     return convolve_6tap_avx2(ss, coeffs);
 
-/*
-    __m256i res = convolve_6tap_avx2(ss, coeffs);
- 
-    // VNNI for compare
-    __m256i filt_256[3], new_coeffs[3], ss1[3];
-
-    filt_256[0] = _mm256_loadu_si256((__m256i const *)filt1_global_vnni);
-    filt_256[1] = _mm256_loadu_si256((__m256i const *)filt2_global_vnni);
-    filt_256[2] = _mm256_loadu_si256((__m256i const *)filt3_global_vnni);
-
-    new_coeffs[0] = _mm256_unpacklo_epi16(coeffs[0], coeffs[1]);
-    new_coeffs[1] = _mm256_unpackhi_epi16(coeffs[0], coeffs[1]);
-    new_coeffs[2] = coeffs[2];
-
-    ss1[0] = _mm256_shuffle_epi8(data, filt_256[0]);
-    ss1[1] = _mm256_shuffle_epi8(data, filt_256[1]);
-    ss1[2] = _mm256_shuffle_epi8(data, filt_256[2]);
-
-    __m256i res0 = _mm256_dpbusd_epi32( _mm256_set1_epi32(0), ss1[0], new_coeffs[0]);
-    __m256i res1 = _mm256_dpbusd_epi32( _mm256_set1_epi32(0), ss1[1], new_coeffs[1]);
-    
-    __m256i r_0123 = _mm256_setr_m128i( _mm256_cvtepi32_epi16(res0), _mm256_cvtepi32_epi16(res1));
-    r_0123 = _mm256_permute4x64_epi64(r_0123, 0xD8);
-    __m256i r_45 = _mm256_maddubs_epi16(ss1[2], new_coeffs[2]);
-    __m256i r_012345 = _mm256_add_epi16(r_0123, r_45);
-
-    if(_mm256_cmp_epu16_mask(r_012345, res, 0x4)){
-        print_256(coeffs[0], "c0");
-        print_256(coeffs[1], "c1");
-        print_256(new_coeffs[0], "n_c1");
-        print_256(new_coeffs[1], "n_c1");
-        print_256(res, "r1");
-        print_256(r_012345, "r2");
-        while(1){}
-     }
-
-    return res;
-    */
 //#else
     /*  2 VNNI Versions possible : 
             0 1 2 3 1 2 3 4 16 17 18 19 17 18 19 20     // The one below
@@ -953,85 +892,20 @@ static INLINE __m256i x_convolve_6tap_avx2_vnni(const __m256i data, const __m256
 
     __m256i res0 = _mm256_dpbusd_epi32( _mm256_set1_epi32(0), ss1[0], coeffs[0]);
     __m256i res1 = _mm256_dpbusd_epi32( _mm256_set1_epi32(0), ss1[1], coeffs[1]);
-    
-    __m256i r_0123 = _mm256_setr_m128i( _mm256_cvtepi32_epi16(res0), _mm256_cvtepi32_epi16(res1));
-    r_0123 = _mm256_permute4x64_epi64(r_0123, 0xD8);
     __m256i r_45 = _mm256_maddubs_epi16(ss1[2], coeffs[2]);
-    __m256i r_012345 = _mm256_add_epi16(r_0123, r_45);
-    return r_012345;
+    __m256i r_0123 = _mm256_packus_epi32(res0, res1);
+    return _mm256_add_epi16(r_0123, r_45);
 }
 
 static INLINE __m256i x_convolve_8tap_avx2(const __m256i data, const __m256i coeffs[4],
                                            const __m256i filt[4]) {
     __m256i ss[4];
-//#ifndef VNNI_SUPPORT
     
     ss[0] = _mm256_shuffle_epi8(data, filt[0]);
     ss[1] = _mm256_shuffle_epi8(data, filt[1]);
     ss[2] = _mm256_shuffle_epi8(data, filt[2]);
     ss[3] = _mm256_shuffle_epi8(data, filt[3]);
-    //__m256i res = convolve_8tap_avx2(ss, coeffs);
-
     return convolve_8tap_avx2(ss, coeffs);
-/*
-    __m256i filt_256[3], new_coeffs[2], ss1[3];
-    
-    filt_256[0] = _mm256_loadu_si256((__m256i const *)filt1_global_vnni);
-    filt_256[1] = _mm256_loadu_si256((__m256i const *)filt2_global_vnni);
-    filt_256[2] = _mm256_loadu_si256((__m256i const *)filt4_global_vnni);
-    
-    new_coeffs[0] = _mm256_unpacklo_epi16(coeffs[0], coeffs[1]);  // 0123
-    new_coeffs[1] = _mm256_unpacklo_epi16(coeffs[2], coeffs[3]);  // 4567
-    new_coeffs[2] = _mm256_unpackhi_epi16(coeffs[0], coeffs[1]);  // 0123
-    new_coeffs[3] = _mm256_unpackhi_epi16(coeffs[2], coeffs[3]);  // 4567
-
-    ss1[0] = _mm256_shuffle_epi8(data, filt_256[0]); // 0123
-    ss1[1] = _mm256_shuffle_epi8(data, filt_256[1]); // 4567
-    ss1[2] = _mm256_shuffle_epi8(data, filt_256[2]); // 89AB
-
-    __m256i r_0123 = _mm256_dpbusd_epi32(_mm256_set1_epi32(0), ss1[0], new_coeffs[0]);   // 0123(0123 coef) + 0 
-    __m256i r_01234567 = _mm256_dpbusd_epi32(r_0123, ss1[1], new_coeffs[1]);             // 0123(0123 coef) + 4567(4567 coef)
-    
-    __m256i r_4567 = _mm256_dpbusd_epi32(_mm256_set1_epi32(0), ss1[1], new_coeffs[0]);   // 4567(0123 coef)
-    __m256i r_456789AB = _mm256_dpbusd_epi32(r_4567, ss1[2], new_coeffs[1]);             // 4567(0123 coef) + 89AB(4567 coef)
-    __m256i r_total = _mm256_setr_m128i(_mm256_cvtepi32_epi16(r_01234567), _mm256_cvtepi32_epi16(r_456789AB));
-    r_total = _mm256_permute4x64_epi64(r_total, 0xD8);
-    //return r_total;
-
-    if(_mm256_cmp_epu16_mask(r_total, res, 0x4)){
-        print_256(res,"res");
-        print_256(r_total,"r_total");
-        while(1){}
-     }
-    return res;
-*/
-
-/*#else
-
-    __m256i filt_256[3], new_coeffs[2], ss1[3];
-    filt_256[0] = _mm256_loadu_si256((__m256i const *)filt1_global_avx);
-    filt_256[1] = _mm256_loadu_si256((__m256i const *)filt2_global_avx);
-    filt_256[2] = _mm256_loadu_si256((__m256i const *)filt4_global_avx);
-
-    new_coeffs[0] = _mm256_unpacklo_epi16(coeffs[0], coeffs[1]);  // 0123
-    new_coeffs[1] = _mm256_unpacklo_epi16(coeffs[2], coeffs[3]);  // 4567
-    new_coeffs[2] = _mm256_unpackhi_epi16(coeffs[0], coeffs[1]);  // 0123
-    new_coeffs[3] = _mm256_unpackhi_epi16(coeffs[2], coeffs[3]);  // 4567
-
-    ss1[0] = _mm256_shuffle_epi8(data, filt_256[0]); // 0123
-    ss1[1] = _mm256_shuffle_epi8(data, filt_256[1]); // 4567
-    ss1[2] = _mm256_shuffle_epi8(data, filt_256[2]); // 89AB
- 
-    __m256i r_0123 = _mm256_dpbusd_epi32(_mm256_set1_epi32(0), ss1[0], new_coeffs[0]);   // 0123(0123 coef) + 0 
-    __m256i r_01234567 = _mm256_dpbusd_epi32(r_0123, ss1[1], new_coeffs[1]);             // 0123(0123 coef) + 4567(4567 coef)
-    
-    __m256i r_4567 = _mm256_dpbusd_epi32(_mm256_set1_epi32(0), ss1[1], new_coeffs[0]);   // 4567(0123 coef)
-    __m256i r_456789AB = _mm256_dpbusd_epi32(r_4567, ss1[2], new_coeffs[1]);             // 4567(0123 coef) + 89AB(4567 coef)
-    __m256i r_total = _mm256_setr_m128i(_mm256_cvtepi32_epi16(r_01234567), _mm256_cvtepi32_epi16(r_456789AB));
-    r_total = _mm256_permute4x64_epi64(r_total, 0xD8);
-    return r_total;
-
-#endif*/
 }
 static INLINE __m256i x_convolve_8tap_avx2_vnni(const __m256i data, const __m256i coeffs[4],
                                            const __m256i filt[4]) {
@@ -1041,15 +915,11 @@ static INLINE __m256i x_convolve_8tap_avx2_vnni(const __m256i data, const __m256
     ss[2] = _mm256_shuffle_epi8(data, filt[2]); // 89AB
 
     __m256i r_0123 = _mm256_dpbusd_epi32(_mm256_set1_epi32(0), ss[0], coeffs[0]);   // 0123(0123 coef) + 0 
+    __m256i r_4567 = _mm256_dpbusd_epi32(_mm256_set1_epi32(0), ss[1], coeffs[0]);   // 4567(0123 coef) + 0
     __m256i r_01234567 = _mm256_dpbusd_epi32(r_0123, ss[1], coeffs[1]);             // 0123(0123 coef) + 4567(4567 coef)
-
-    __m256i r_4567 = _mm256_dpbusd_epi32(_mm256_set1_epi32(0), ss[1], coeffs[0]);   // 4567(0123 coef)
     __m256i r_456789AB = _mm256_dpbusd_epi32(r_4567, ss[2], coeffs[1]);             // 4567(0123 coef) + 89AB(4567 coef)
     
-    __m256i r_total = _mm256_packus_epi32(r_01234567, r_456789AB);
-    //__m256i r_total = _mm256_setr_m128i(_mm256_cvtepi32_epi16(r_01234567), _mm256_cvtepi32_epi16(r_456789AB));
-    //r_total = _mm256_permute4x64_epi64(r_total, 0xD8);
-    return r_total;
+   return _mm256_packus_epi32(r_01234567, r_456789AB);
 }
 
 static INLINE __m256i sr_y_round_avx2(const __m256i src) {
@@ -1459,20 +1329,8 @@ static INLINE void x_convolve_6tap_32_avx2_vnni(const uint8_t *const src, const 
     const __m256i s0_256 = _mm256_loadu_si256((__m256i *)src);
     const __m256i s1_256 = _mm256_loadu_si256((__m256i *)(src + 8));
 
-    //#ifndef VNNI_SUPPORT
         r[0] = x_convolve_6tap_avx2_vnni(s0_256, coeffs, filt);
         r[1] = x_convolve_6tap_avx2_vnni(s1_256, coeffs, filt);
-    /*#else
-        __m256i s0, s1;
-        s0 = _mm256_permute2x128_si256(s0_256, s1_256, 0x20);
-        s1 = _mm256_permute2x128_si256(s0_256, s1_256, 0x31);
-
-        s0 = x_convolve_6tap_avx2_vnni(s0, coeffs, filt);
-        s1 = x_convolve_6tap_avx2_vnni(s1, coeffs, filt);
-
-        r[0] = _mm256_permute2x128_si256(s0, s1, 0x20);
-        r[1] = _mm256_permute2x128_si256(s0, s1, 0x31);
-    #endif*/
 }
 
 static INLINE __m256i x_convolve_8tap_8x2_avx2(const uint8_t *const src, const ptrdiff_t stride,

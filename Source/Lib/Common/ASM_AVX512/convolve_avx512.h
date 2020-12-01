@@ -21,7 +21,6 @@
 #include "synonyms_avx2.h"
 #include "synonyms_avx512.h"
 
-//#define VNNI_SUPPORT_AVX512
 #ifndef NON_AVX512_SUPPORT
 
 DECLARE_ALIGNED(64, static const uint8_t, filt1_global_vnni_[]) = {
@@ -95,24 +94,18 @@ static INLINE void populate_coeffs_4tap_avx512(const __m128i coeffs_128, __m512i
 
 static INLINE void populate_coeffs_6tap_avx512(const __m128i coeffs_128, __m512i coeffs[3]) {
     const __m512i coeffs_512 = svt_mm512_broadcast_i64x2(coeffs_128);
-//#ifndef VNNI_SUPPORT
     // coeffs 1 2 1 2 1 2 1 2
     coeffs[0] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi16(0x0402u));
     // coeffs 3 4 3 4 3 4 3 4
     coeffs[1] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi16(0x0806u));
     // coeffs 5 6 5 6 5 6 5 6
     coeffs[2] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi16(0x0C0Au));
-/*#else
-    coeffs[0] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi32(0x08060402u));
-    coeffs[1] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi32(0x08060402u));
-    coeffs[2] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi16(0x0C0Au));
-#endif*/
 }
 static INLINE void populate_coeffs_6tap_avx512_vnni(const __m128i coeffs_128, __m512i coeffs[3]) {
     const __m512i coeffs_512 = svt_mm512_broadcast_i64x2(coeffs_128);
 
     coeffs[0] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi32(0x08060402u));
-    coeffs[1] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi32(0x08060402u));
+    coeffs[1] = coeffs[0];
     coeffs[2] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi16(0x0C0Au));
 }
 
@@ -135,9 +128,9 @@ static INLINE void populate_coeffs_8tap_avx512_vnni(const __m128i coeffs_128, __
     // coeffs 2 3 2 3 2 3 2 3
     coeffs[1] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi32(0x0e0c0a08u));
     // coeffs 4 5 4 5 4 5 4 5
-    coeffs[2] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi32(0x06040200u));
+    coeffs[2] = coeffs[0];
     // coeffs 6 7 6 7 6 7 6 7
-    coeffs[3] = _mm512_shuffle_epi8(coeffs_512, _mm512_set1_epi32(0x0e0c0a08u));
+    coeffs[3] = coeffs[1];
 }
 
 static INLINE void prepare_half_coeffs_2tap_avx512(const InterpFilterParams *const filter_params,
@@ -423,8 +416,9 @@ static INLINE __m512i convolve_6tap_avx512(const __m512i ss[3], const __m512i co
 static INLINE __m512i convolve_6tap_avx512_vnni(const __m512i ss[3], const __m512i coeffs[3]) {
     const __m512i res_0123 = _mm512_dpbusd_epi32(_mm512_setzero_si512(), ss[0], coeffs[0]);
     const __m512i res_4567 = _mm512_dpbusd_epi32(_mm512_setzero_si512(), ss[1], coeffs[1]);
+    const __m512i res_4589 = _mm512_maddubs_epi16(ss[2], coeffs[2]);
     const __m512i res = _mm512_packus_epi32(res_0123, res_4567);
-    return _mm512_add_epi16(res, _mm512_maddubs_epi16(ss[2], coeffs[2]));
+    return _mm512_add_epi16(res, res_4589);
 }
 
 static INLINE __m512i convolve_8tap_avx512(const __m512i ss[4], const __m512i coeffs[4]) {
@@ -462,6 +456,7 @@ static INLINE __m512i convolve16_6tap_avx512(const __m512i ss[3], const __m512i 
     return _mm512_add_epi32(res_0123, res_45);
 }
 static INLINE __m512i convolve16_6tap_avx512_vnni(const __m512i ss[3], const __m512i coeffs[3]) {
+    // Maybe replace 1 dpw by a madd add ?
     const __m512i res_01   = _mm512_dpwssd_epi32(_mm512_setzero_epi32(), ss[0], coeffs[0]);
     const __m512i res_23   = _mm512_dpwssd_epi32(res_01, ss[1], coeffs[1]);
     return _mm512_dpwssd_epi32(res_23, ss[2], coeffs[2]);
@@ -477,6 +472,7 @@ static INLINE __m512i convolve16_8tap_avx512(const __m512i ss[4], const __m512i 
     return _mm512_add_epi32(res_0123, res_4567);
 }
 static INLINE __m512i convolve16_8tap_avx512_vnni(const __m512i ss[4], const __m512i coeffs[4]) {
+    // Same
     const __m512i res_01   = _mm512_dpwssd_epi32(_mm512_setzero_epi32(), ss[0], coeffs[0]);
     const __m512i res_23   = _mm512_dpwssd_epi32(res_01, ss[1], coeffs[1]);
     const __m512i res_45   = _mm512_dpwssd_epi32(res_23, ss[2], coeffs[2]);
@@ -634,33 +630,13 @@ static INLINE __m512i x_convolve_4tap_avx512(const __m512i data, const __m512i c
 }
 
 static INLINE __m512i x_convolve_6tap_avx512(const __m512i data, const __m512i coeffs[3],
-                                             const __m512i filt[3]) {
-//#ifndef VNNI_SUPPORT                                                 
+                                             const __m512i filt[3]) {                                        
     __m512i ss[3];
 
     ss[0] = _mm512_shuffle_epi8(data, filt[0]);
     ss[1] = _mm512_shuffle_epi8(data, filt[1]);
     ss[2] = _mm512_shuffle_epi8(data, filt[2]);
-
-    //__m512i res = convolve_6tap_avx512(ss, coeffs);
     return convolve_6tap_avx512(ss, coeffs);
-/*#else
-    __m512i ss1[3];
-    
-    ss1[0] = _mm512_shuffle_epi8(data, filt[0]);     // 4 by 4
-    ss1[1] = _mm512_shuffle_epi8(data, filt[1]);
-    ss1[2] = _mm512_shuffle_epi8(data, filt[2]);     // last 2
-
-    __m512i res0 = _mm512_dpbusd_epi32( _mm512_set1_epi32(0), ss1[0], coeffs[0]);
-    __m512i res1 = _mm512_dpbusd_epi32( _mm512_set1_epi32(0), ss1[1], coeffs[1]);
-    
-    __m256i r_0123 = _mm512_setr_m128i( _mm512_cvtepi32_epi16(res0), _mm512_cvtepi32_epi16(res1));
-    _mm512_setr_m256i(_mm512_cvtepi32_epi16(res0), _mm512_cvtepi32_epi16(res1));
-    r_0123 = _mm256_permute4x64_epi64(r_0123, 0xD8);
-    __m256i res45 = _mm256_maddubs_epi16(ss1[2], coeffs[2]);
-    __m256i res00 = _mm256_add_epi16(r_0123, res45);
-
-#endif*/
 }
 static INLINE __m512i x_convolve_6tap_avx512_vnni(const __m512i data, const __m512i coeffs[3],
                                              const __m512i filt[3]) {                           
@@ -672,10 +648,10 @@ static INLINE __m512i x_convolve_6tap_avx512_vnni(const __m512i data, const __m5
 
     __m512i res_0123 = _mm512_dpbusd_epi32( _mm512_set1_epi32(0), ss1[0], coeffs[0]);
     __m512i res_4567 = _mm512_dpbusd_epi32( _mm512_set1_epi32(0), ss1[1], coeffs[1]);
-    
+    __m512i res_4589 = _mm512_maddubs_epi16(ss1[2], coeffs[2]);
     __m512i res = _mm512_packus_epi32(res_0123, res_4567);
 
-    return _mm512_add_epi16(res, _mm512_maddubs_epi16(ss1[2], coeffs[2]));
+    return _mm512_add_epi16(res, res_4589);
 }
 
 static INLINE __m512i x_convolve_8tap_avx512(const __m512i data, const __m512i coeffs[4],
@@ -687,44 +663,7 @@ static INLINE __m512i x_convolve_8tap_avx512(const __m512i data, const __m512i c
     ss[2] = _mm512_shuffle_epi8(data, filt[2]);
     ss[3] = _mm512_shuffle_epi8(data, filt[3]);
 
-    //__m512i res = convolve_8tap_avx512(ss, coeffs);
     return convolve_8tap_avx512(ss, coeffs);
-/*
-    __m512i filt_256[3], new_coeffs[2], ss1[3];
-    filt_256[0] = _mm512_loadu_si512((__m256i const *)filt1_global_vnni_);
-    filt_256[1] = _mm512_loadu_si512((__m256i const *)filt2_global_vnni_);
-    filt_256[2] = _mm512_loadu_si512((__m256i const *)filt4_global_vnni_);
-
-    new_coeffs[0] = _mm512_unpacklo_epi16(coeffs[0], coeffs[1]);  // 0123
-    new_coeffs[1] = _mm512_unpacklo_epi16(coeffs[2], coeffs[3]);  // 4567
-    new_coeffs[2] = _mm512_unpackhi_epi16(coeffs[0], coeffs[1]);  // 0123
-    new_coeffs[3] = _mm512_unpackhi_epi16(coeffs[2], coeffs[3]);  // 4567
-
-    ss1[0] = _mm512_shuffle_epi8(data, filt_256[0]); // 0123
-    ss1[1] = _mm512_shuffle_epi8(data, filt_256[1]); // 4567
-    ss1[2] = _mm512_shuffle_epi8(data, filt_256[2]); // 89AB
-
-    __m512i r_0123 = _mm512_dpbusd_epi32(_mm512_set1_epi32(0), ss1[0], new_coeffs[0]);
-    __m512i r_01234567 = _mm512_dpbusd_epi32(r_0123, ss1[1], new_coeffs[1]);
-
-    __m512i r_4567 = _mm512_dpbusd_epi32(_mm512_set1_epi32(0), ss1[1], new_coeffs[0]);
-    __m512i r_456789AB = _mm512_dpbusd_epi32(r_4567, ss1[2], new_coeffs[1]);
-
-    __m512i r_total = _mm512_packus_epi32(r_01234567, r_456789AB);
-    //__m512i r_total = _mm512_permutexvar_epi64(_mm512_set_epi64(7, 5, 6, 4, 3, 2, 1, 0), r_tmp);
-
-    if(_mm512_cmp_epu16_mask(res, r_total, 0x4)){
-        printf("\n");
-        print_512(res,"res    ");
-        //print_512(r_tmp, "r_tmp");
-
-        print_512(r_total,"r_total");
-        
-        while(1){}
-    }
-
-    return res;
-*/
 }
 static INLINE __m512i x_convolve_8tap_avx512_vnni(const __m512i data, const __m512i coeffs[4],
                                              const __m512i filt[4]) {
@@ -735,14 +674,11 @@ static INLINE __m512i x_convolve_8tap_avx512_vnni(const __m512i data, const __m5
     ss[2] = _mm512_shuffle_epi8(data, filt[2]);
 
     __m512i r_0123 = _mm512_dpbusd_epi32(_mm512_setzero_si512(), ss[0], coeffs[0]);
-    __m512i r_01234567 = _mm512_dpbusd_epi32(r_0123, ss[1], coeffs[1]);
-
     __m512i r_4567 = _mm512_dpbusd_epi32(_mm512_setzero_si512(), ss[1], coeffs[0]);
+    __m512i r_01234567 = _mm512_dpbusd_epi32(r_0123, ss[1], coeffs[1]);
     __m512i r_456789AB = _mm512_dpbusd_epi32(r_4567, ss[2], coeffs[1]);
 
-    __m512i res = _mm512_packus_epi32(r_01234567, r_456789AB);
-    //res = _mm512_permutexvar_epi64(_mm512_set_epi64(0, 2, 1, 3, 4, 6, 5, 7), res);
-    return res;
+    return _mm512_packus_epi32(r_01234567, r_456789AB);
 }
 
 static INLINE void x_convolve_6tap_32x2_avx512(const uint8_t *const src, const ptrdiff_t src_stride,

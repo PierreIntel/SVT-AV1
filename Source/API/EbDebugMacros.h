@@ -35,6 +35,8 @@ extern "C" {
 #ifndef NON_AVX512_SUPPORT
 //#define NON_AVX512_SUPPORT
 #endif
+#define VNNI_SUPPORT_6tap
+#define VNNI_SUPPORT_8tap
 
 #define FIX_RC_BUG 1 // Fix the one pass QP assignment using frames_to_be_encoded
 #define FIX_VBR_BUG 1 // Fix 1st pass bug (bug from rebasing the branch)

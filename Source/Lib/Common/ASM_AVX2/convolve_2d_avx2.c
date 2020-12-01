@@ -141,7 +141,7 @@ static void convolve_2d_sr_hor_6tap_avx2(const uint8_t *const src, const int32_t
     int32_t        y       = h;
     int16_t *      im      = im_block;
     __m256i        coeffs_256[3], filt_256[3];
-#ifndef VNNI_SUPPORT
+#ifndef VNNI_SUPPORT_6tap
     filt_256[0] = _mm256_loadu_si256((__m256i const *)filt1_global_avx);
     filt_256[1] = _mm256_loadu_si256((__m256i const *)filt2_global_avx);
     filt_256[2] = _mm256_loadu_si256((__m256i const *)filt3_global_avx);
@@ -159,7 +159,7 @@ static void convolve_2d_sr_hor_6tap_avx2(const uint8_t *const src, const int32_t
     //if(n%1000){printf("w8 %d, w16 %d, w32 %d, w64 %d, w128 %d\n", w8, w16, w32, w64, w128);}
     if (w == 8) {
         do {
-            #ifndef VNNI_SUPPORT
+            #ifndef VNNI_SUPPORT_6tap
             const __m256i res = x_convolve_6tap_8x2_avx2(src_ptr, src_stride, coeffs_256, filt_256);
             #else
             const __m256i res = x_convolve_6tap_8x2_avx2_vnni(src_ptr, src_stride, coeffs_256, filt_256);
@@ -172,7 +172,7 @@ static void convolve_2d_sr_hor_6tap_avx2(const uint8_t *const src, const int32_t
     } else if (w == 16) {
         do {
             __m256i r[2];
-            #ifndef VNNI_SUPPORT
+            #ifndef VNNI_SUPPORT_6tap
             x_convolve_6tap_16x2_avx2(src_ptr, src_stride, coeffs_256, filt_256, r);
             #else
             x_convolve_6tap_16x2_avx2_vnni(src_ptr, src_stride, coeffs_256, filt_256, r);
@@ -184,7 +184,7 @@ static void convolve_2d_sr_hor_6tap_avx2(const uint8_t *const src, const int32_t
         } while (y);
     } else if (w == 32) {
         do {
-            #ifndef VNNI_SUPPORT 
+            #ifndef VNNI_SUPPORT_6tap
             xy_x_6tap_32_avx2(src_ptr, coeffs_256, filt_256, im);
             #else
             xy_x_6tap_32_avx2_vnni(src_ptr, coeffs_256, filt_256, im);
@@ -195,7 +195,7 @@ static void convolve_2d_sr_hor_6tap_avx2(const uint8_t *const src, const int32_t
     } else if (w == 64) {
         do {
             // Not Call //
-            #ifndef VNNI_SUPPORT
+            #ifndef VNNI_SUPPORT_6tap
             xy_x_6tap_32_avx2(src_ptr, coeffs_256, filt_256, im);
             xy_x_6tap_32_avx2(src_ptr + 32, coeffs_256, filt_256, im + 32);
             #else
@@ -210,7 +210,7 @@ static void convolve_2d_sr_hor_6tap_avx2(const uint8_t *const src, const int32_t
 
         do {
             // Not Call //
-            #ifndef VNNI_SUPPORT
+            #ifndef VNNI_SUPPORT_6tap
             xy_x_6tap_32_avx2(src_ptr, coeffs_256, filt_256, im);
             xy_x_6tap_32_avx2(src_ptr + 32, coeffs_256, filt_256, im + 32);
             xy_x_6tap_32_avx2(src_ptr + 64, coeffs_256, filt_256, im + 64);
@@ -240,7 +240,7 @@ static void convolve_2d_sr_hor_8tap_avx2(const uint8_t *const src, const int32_t
     //n++;
     //if(n%1000){printf("w8 %d, w16 %d, w32 %d, w64 %d, w128 %d\n", w8, w16, w32, w64, w128);}
 
-#ifndef VNNI_SUPPORT
+#ifndef VNNI_SUPPORT_8tap
     filt_256[0] = _mm256_loadu_si256((__m256i const *)filt1_global_avx);
     filt_256[1] = _mm256_loadu_si256((__m256i const *)filt2_global_avx);
     filt_256[2] = _mm256_loadu_si256((__m256i const *)filt3_global_avx);
@@ -256,7 +256,7 @@ static void convolve_2d_sr_hor_8tap_avx2(const uint8_t *const src, const int32_t
 
     if (w == 8) {
         do {
-            #ifndef VNNI_SUPPORT
+            #ifndef VNNI_SUPPORT_8tap
             const __m256i res = x_convolve_8tap_8x2_avx2(src_ptr, src_stride, coeffs_256, filt_256);
             #else
             const __m256i res = x_convolve_8tap_8x2_avx2_vnni(src_ptr, src_stride, coeffs_256, filt_256); // !!!!!!!!!!!!!!!!!
@@ -269,7 +269,7 @@ static void convolve_2d_sr_hor_8tap_avx2(const uint8_t *const src, const int32_t
     } else if (w == 16) {
         do {
             __m256i r[2];
-            #ifndef VNNI_SUPPORT
+            #ifndef VNNI_SUPPORT_8tap
             x_convolve_8tap_16x2_avx2(src_ptr, src_stride, coeffs_256, filt_256, r);
             #else
             x_convolve_8tap_16x2_avx2_vnni(src_ptr, src_stride, coeffs_256, filt_256, r);
@@ -281,7 +281,7 @@ static void convolve_2d_sr_hor_8tap_avx2(const uint8_t *const src, const int32_t
         } while (y);
     } else if (w == 32) {
         do {
-            #ifndef VNNI_SUPPORT
+            #ifndef VNNI_SUPPORT_8tap
             xy_x_8tap_32_avx2(src_ptr, coeffs_256, filt_256, im);
             #else   
             xy_x_8tap_32_avx2_vnni(src_ptr, coeffs_256, filt_256, im);
@@ -292,7 +292,7 @@ static void convolve_2d_sr_hor_8tap_avx2(const uint8_t *const src, const int32_t
         } while (--y);
     } else if (w == 64) {
         do {
-            #ifndef VNNI_SUPPORT
+            #ifndef VNNI_SUPPORT_8tap
             xy_x_8tap_32_avx2(src_ptr, coeffs_256, filt_256, im);
             xy_x_8tap_32_avx2(src_ptr + 32, coeffs_256, filt_256, im + 32);
             #else
@@ -306,7 +306,7 @@ static void convolve_2d_sr_hor_8tap_avx2(const uint8_t *const src, const int32_t
         assert(w == 128);
 
         do {
-            #ifndef VNNI_SUPPORT
+            #ifndef VNNI_SUPPORT_8tap
             xy_x_8tap_32_avx2(src_ptr, coeffs_256, filt_256, im);
             xy_x_8tap_32_avx2(src_ptr + 32, coeffs_256, filt_256, im + 32);
             xy_x_8tap_32_avx2(src_ptr + 64, coeffs_256, filt_256, im + 64);
@@ -771,7 +771,7 @@ static void convolve_2d_sr_ver_6tap_avx2(const int16_t *const im_block, const in
 
         y = h;
         do {
-            #ifndef VNNI_SUPPORT
+            #ifndef VNNI_SUPPORT_6tap
             const __m128i res = xy_y_convolve_6tap_2x2_sse2(im, s_32, ss_128, coeffs_128);
             #else
             const __m128i res = xy_y_convolve_6tap_2x2_sse2_vnni(im, s_32, ss_128, coeffs_128);
@@ -807,7 +807,7 @@ static void convolve_2d_sr_ver_6tap_avx2(const int16_t *const im_block, const in
 
             y = h;
             do {
-                #ifndef VNNI_SUPPORT
+                #ifndef VNNI_SUPPORT_6tap
                 const __m256i res = xy_y_convolve_6tap_4x2_avx2(im, s_64, ss_256, coeffs_256);
                 #else 
                 const __m256i res = xy_y_convolve_6tap_4x2_avx2_vnni(im, s_64, ss_256, coeffs_256);
@@ -836,7 +836,7 @@ static void convolve_2d_sr_ver_6tap_avx2(const int16_t *const im_block, const in
                 ss_256[4] = _mm256_unpackhi_epi16(s_256[2], s_256[3]);
 
                 do {
-                    #ifndef VNNI_SUPPORT
+                    #ifndef VNNI_SUPPORT_6tap
                     xy_y_convolve_6tap_8x2_avx2(im, ss_256, coeffs_256, r);
                     #else
                     xy_y_convolve_6tap_8x2_avx2_vnni(im, ss_256, coeffs_256, r);
@@ -848,7 +848,7 @@ static void convolve_2d_sr_ver_6tap_avx2(const int16_t *const im_block, const in
                 } while (y);
             } else {
                 do {
-                    #ifndef VNNI_SUPPORT
+                    #ifndef VNNI_SUPPORT_6tap
                     xy_y_convolve_6tap_8x2_half_pel_avx2(im, coeffs_256, s_256, r);
                     #else
                     xy_y_convolve_6tap_8x2_half_pel_avx2_vnni(im, coeffs_256, s_256, r);
@@ -883,7 +883,7 @@ static void convolve_2d_sr_ver_6tap_avx2(const int16_t *const im_block, const in
                 tt_256[4] = _mm256_unpackhi_epi16(s_256[3], s_256[4]);
 
                 do {
-                    #ifndef VNNI_SUPPORT
+                    #ifndef VNNI_SUPPORT_6tap
                     xy_y_convolve_6tap_16x2_avx2(im, 16, s_256, ss_256, tt_256, coeffs_256, r);
                     #else
                     xy_y_convolve_6tap_16x2_avx2_vnni(im, 16, s_256, ss_256, tt_256, coeffs_256, r);
@@ -925,7 +925,7 @@ static void convolve_2d_sr_ver_6tap_avx2(const int16_t *const im_block, const in
 
                 y = h;
                 do {
-                    #ifndef VNNI_SUPPORT
+                    #ifndef VNNI_SUPPORT_6tap
                     xy_y_convolve_6tap_16x2_avx2(
                         s, w, s_256[0], ss_256[0], tt_256[0], coeffs_256, r0);
                     xy_y_convolve_6tap_16x2_avx2(
@@ -983,7 +983,7 @@ static void convolve_2d_sr_ver_8tap_avx2(const int16_t *const im_block, const in
 
         y = h;
         do {
-            #ifndef VNNI_SUPPORT
+            #ifndef VNNI_SUPPORT_8tap
             const __m128i res = xy_y_convolve_8tap_2x2_sse2(im, s_32, ss_128, coeffs_128);
             #else
             const __m128i res = xy_y_convolve_8tap_2x2_sse2_vnni(im, s_32, ss_128, coeffs_128);
@@ -1024,7 +1024,7 @@ static void convolve_2d_sr_ver_8tap_avx2(const int16_t *const im_block, const in
 
             y = h;
             do {
-                #ifndef VNNI_SUPPORT
+                #ifndef VNNI_SUPPORT_8tap
                 const __m256i res = xy_y_convolve_8tap_4x2_avx2(im, s_64, ss_256, coeffs_256);
                 #else
                 const __m256i res = xy_y_convolve_8tap_4x2_avx2_vnni(im, s_64, ss_256, coeffs_256);
@@ -1051,7 +1051,7 @@ static void convolve_2d_sr_ver_8tap_avx2(const int16_t *const im_block, const in
                 convolve_8tap_unapck_avx2(s_256, ss_256);
 
                 do {
-                    #ifndef VNNI_SUPPORT
+                    #ifndef VNNI_SUPPORT_8tap
                     xy_y_convolve_8tap_8x2_avx2(im, ss_256, coeffs_256, r);
                     #else
                     xy_y_convolve_8tap_8x2_avx2_vnni(im, ss_256, coeffs_256, r);
@@ -1087,7 +1087,7 @@ static void convolve_2d_sr_ver_8tap_avx2(const int16_t *const im_block, const in
                 convolve_8tap_unapck_avx2(s_256 + 1, tt_256);
 
                 do {
-                    #ifndef VNNI_SUPPORT
+                    #ifndef VNNI_SUPPORT_8tap
                     xy_y_convolve_8tap_16x2_avx2(im, 16, coeffs_256, s_256, ss_256, tt_256, r);
                     #else
                     xy_y_convolve_8tap_16x2_avx2_vnni(im, 16, coeffs_256, s_256, ss_256, tt_256, r);
@@ -1134,7 +1134,7 @@ static void convolve_2d_sr_ver_8tap_avx2(const int16_t *const im_block, const in
 
                 y = h;
                 do {
-                    #ifndef VNNI_SUPPORT
+                    #ifndef VNNI_SUPPORT_8tap
                     xy_y_convolve_8tap_16x2_avx2(
                         s, w, coeffs_256, s_256[0], ss_256[0], tt_256[0], r0);
                     xy_y_convolve_8tap_16x2_avx2(
