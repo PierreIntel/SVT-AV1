@@ -1079,7 +1079,7 @@ static int32_t count_wiener_bits(int32_t wiener_win, WienerInfo *wiener_info,
                                                  wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV);
     return bits;
 }
-
+int cpt=0;
 #define USE_WIENER_REFINEMENT_SEARCH 1
 static int64_t finer_tile_search_wiener_seg(const RestSearchCtxt *       rsc,
                                             const RestorationTileLimits *limits,
@@ -1087,6 +1087,7 @@ static int64_t finer_tile_search_wiener_seg(const RestSearchCtxt *       rsc,
                                             int32_t wiener_win) {
     const int32_t plane_off = (WIENER_WIN - wiener_win) >> 1;
     int64_t       err       = try_restoration_unit_seg(rsc, limits, tile, rui);
+    cpt++;
 #if USE_WIENER_REFINEMENT_SEARCH
     int64_t err2;
     int32_t tap_min[] = {WIENER_FILT_TAP0_MINV, WIENER_FILT_TAP1_MINV, WIENER_FILT_TAP2_MINV};
@@ -1105,6 +1106,7 @@ static int64_t finer_tile_search_wiener_seg(const RestSearchCtxt *       rsc,
                     plane_wiener->hfilter[WIENER_WIN - p - 1] -= (int16_t)s;
                     plane_wiener->hfilter[WIENER_HALFWIN] += 2 * (int16_t)s;
                     err2 = try_restoration_unit_seg(rsc, limits, tile, rui);
+                    cpt++;
                     if (err2 > err) {
                         plane_wiener->hfilter[p] += (int16_t)s;
                         plane_wiener->hfilter[WIENER_WIN - p - 1] += (int16_t)s;
@@ -1125,6 +1127,7 @@ static int64_t finer_tile_search_wiener_seg(const RestSearchCtxt *       rsc,
                     plane_wiener->hfilter[WIENER_WIN - p - 1] += (int16_t)s;
                     plane_wiener->hfilter[WIENER_HALFWIN] -= 2 * (int16_t)s;
                     err2 = try_restoration_unit_seg(rsc, limits, tile, rui);
+                    cpt++;
                     if (err2 > err) {
                         plane_wiener->hfilter[p] -= (int16_t)s;
                         plane_wiener->hfilter[WIENER_WIN - p - 1] -= (int16_t)s;
@@ -1146,6 +1149,7 @@ static int64_t finer_tile_search_wiener_seg(const RestSearchCtxt *       rsc,
                     plane_wiener->vfilter[WIENER_WIN - p - 1] -= (int16_t)s;
                     plane_wiener->vfilter[WIENER_HALFWIN] += 2 * (int16_t)s;
                     err2 = try_restoration_unit_seg(rsc, limits, tile, rui);
+                    cpt++;
                     if (err2 > err) {
                         plane_wiener->vfilter[p] += (int16_t)s;
                         plane_wiener->vfilter[WIENER_WIN - p - 1] += (int16_t)s;
@@ -1166,6 +1170,7 @@ static int64_t finer_tile_search_wiener_seg(const RestSearchCtxt *       rsc,
                     plane_wiener->vfilter[WIENER_WIN - p - 1] += (int16_t)s;
                     plane_wiener->vfilter[WIENER_HALFWIN] -= 2 * (int16_t)s;
                     err2 = try_restoration_unit_seg(rsc, limits, tile, rui);
+                    cpt++;
                     if (err2 > err) {
                         plane_wiener->vfilter[p] -= (int16_t)s;
                         plane_wiener->vfilter[WIENER_WIN - p - 1] -= (int16_t)s;
@@ -1180,6 +1185,9 @@ static int64_t finer_tile_search_wiener_seg(const RestSearchCtxt *       rsc,
             } while (1);
         }
     }
+    #ifdef print_rest_wiener
+    printf("Call to try_restoration_unit Wiener (+Error) = %d\n", cpt);
+    #endif
     // SVT_LOG("err post = %"PRId64"\n", err);
 #endif // USE_WIENER_REFINEMENT_SEARCH
     return err;

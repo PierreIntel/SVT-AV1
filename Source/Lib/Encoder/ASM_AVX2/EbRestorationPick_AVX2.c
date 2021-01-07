@@ -27,6 +27,7 @@ static INLINE void avx2_mul_epi16_epi32(__m256i *a, __m256i *b, __m256i *out) {
     out[0] = _mm256_mullo_epi32(a_32[0], b_32[0]);
     out[1] = _mm256_mullo_epi32(a_32[1], b_32[1]);
 }
+int proj, it =0;
 void svt_get_proj_subspace_avx2(const uint8_t *src8, int width, int height, int src_stride,
                             const uint8_t *dat8, int dat_stride, int use_highbitdepth,
                             int32_t *flt0, int flt0_stride, int32_t *flt1, int flt1_stride, int *xq,
@@ -39,7 +40,7 @@ void svt_get_proj_subspace_avx2(const uint8_t *src8, int width, int height, int 
 
     aom_clear_system_state();
     RunEmms();
-
+    proj++;
     // Default
     xq[0] = 0;
     xq[1] = 0;
@@ -61,7 +62,7 @@ void svt_get_proj_subspace_avx2(const uint8_t *src8, int width, int height, int 
         const uint8_t *dat = dat8;
         for (int i = 0; i < height; ++i) {
             int j=0, avx2_cnt =0;
-            for (; avx2_cnt < width / 16; j += 16, ++avx2_cnt) {
+            for (; avx2_cnt < width / 16; j += 16, ++avx2_cnt) {it++;
                 u_256 = _mm256_cvtepu8_epi16(
                     _mm_loadu_si128((const __m128i *)(dat + i * dat_stride + j)));
                 u_256 = _mm256_slli_epi16(u_256, SGRPROJ_RST_BITS);
@@ -162,7 +163,7 @@ void svt_get_proj_subspace_avx2(const uint8_t *src8, int width, int height, int 
 
         for (int i = 0; i < height; ++i) {
             int j = 0, avx2_cnt = 0;
-            for (; avx2_cnt < width / 16; j += 16, ++avx2_cnt) {
+            for (; avx2_cnt < width / 16; j += 16, ++avx2_cnt) {it++;
                 u_256 = _mm256_loadu_si256((const __m256i *)(dat + i * dat_stride + j));
                 u_256 = _mm256_slli_epi16(u_256, SGRPROJ_RST_BITS);
 
@@ -292,4 +293,7 @@ void svt_get_proj_subspace_avx2(const uint8_t *src8, int width, int height, int 
         xq[0] = (int)rint(x[0] * (1 << SGRPROJ_PRJ_BITS));
         xq[1] = (int)rint(x[1] * (1 << SGRPROJ_PRJ_BITS));
     }
+    #ifdef print_proj
+    printf("Calls to get_proj_subspace %d, iteration %d\n", proj, it);
+    #endif
 }

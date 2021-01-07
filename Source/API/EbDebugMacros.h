@@ -38,6 +38,22 @@ extern "C" {
 #define VNNI_SUPPORT_6tap
 #define VNNI_SUPPORT_8tap
 
+//#define print_debloking
+//#define print_getsse_calls
+
+//#define print_wiener_stats
+//#define print_rest_wiener
+//#define print_convolve_wiener
+//#define self_calls
+//#define print_proj
+
+#define convolve_2d
+//#define convolve_sr
+//#define convolve_jnt2d
+//#define convolve_jnt
+
+//#define print_rest_calls
+
 #define FIX_RC_BUG 1 // Fix the one pass QP assignment using frames_to_be_encoded
 #define FIX_VBR_BUG 1 // Fix 1st pass bug (bug from rebasing the branch)
 #define FIX_10BIT     1 // fix 1st pass for 10bit input

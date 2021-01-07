@@ -22,6 +22,11 @@
 #include "EbCommonUtils.h"
 //#include "EbLog.h"
 
+// tap
+int y4, y6, y8, y14, x4, x6, x8, x14, ytot, xtot = 0;
+// range
+int xr8, xr16, yr7, yr8, yr14, yr16, ox, oy, xo, yo = 0; 
+
 void svt_av1_loop_filter_init(PictureControlSet *pcs_ptr) {
     //assert(MB_MODE_COUNT == n_elements(mode_lf_lut));
     LoopFilterInfoN *  lfi = &pcs_ptr->parent_pcs_ptr->lf_info;
@@ -350,7 +355,9 @@ void svt_av1_filter_block_plane_vert(const PictureControlSet *const pcs_ptr,
             x_range = ((((scs_ptr->max_input_luma_width - scs_ptr->max_input_pad_right) % sb_size) >> scale_horz) + MI_SIZE - 1) >> MI_SIZE_LOG2;
         }
     }
-
+    ytot++;
+    if(y_range==7){yr7++;}else if(y_range==8){yr8++;}else if(y_range==14){yr14++;}else if(y_range==16){yr16++;}
+    int ok = 1;
     for (int32_t y = 0; y < y_range; y += row_step) {
         uint8_t *p = dst_ptr + ((y * MI_SIZE * dst_stride) << plane_ptr->is_16bit);
         for (int32_t x = 0; x < x_range;) {
@@ -377,6 +384,21 @@ void svt_av1_filter_block_plane_vert(const PictureControlSet *const pcs_ptr,
             if (tx_size == TX_INVALID) {
                 params.filter_length = 0;
                 tx_size              = TX_4X4;
+            }
+            int fil = params.filter_length;
+            if(ok){
+                if(fil==4){
+                    y4++;
+                }else if(fil==6){
+                    y6++;
+                }else if(fil==8){
+                    y8++;
+                }else if(fil==14){
+                    y14++;
+                }else{
+                    yo ++;
+                }
+                ok = 0;
             }
 
             switch (params.filter_length) {
@@ -442,6 +464,9 @@ void svt_av1_filter_block_plane_vert(const PictureControlSet *const pcs_ptr,
             p += ((advance_units * MI_SIZE) << plane_ptr->is_16bit);
         }
     }
+    #ifdef print_debloking
+    printf("Debloking calls to vertical %d, [%d,%d], Tap y4 %d, y6 %d, y8 %d, y14 %d, yo %d, Range yr7 %d, yr8 %d, yr14 %d, yr16 %d, oy %d\n", ytot, x_range, y_range, y4, y6, y8, y14, yo, yr7, yr8, yr14, yr16, oy);
+    #endif
 }
 
 void svt_av1_filter_block_plane_horz(const PictureControlSet *const pcs_ptr,
@@ -482,7 +507,9 @@ void svt_av1_filter_block_plane_horz(const PictureControlSet *const pcs_ptr,
             x_range = ((((scs_ptr->max_input_luma_width - scs_ptr->max_input_pad_right) % sb_size) >> scale_horz) + MI_SIZE - 1) >> MI_SIZE_LOG2;
         }
     }
-
+    xtot++;
+    if(x_range==8){xr8++;}else if(x_range==16){xr16++;}else{ox++;}
+    int ok = 1;
     for (int32_t x = 0; x < x_range; x += col_step) {
         uint8_t *p = dst_ptr + ((x * MI_SIZE) << plane_ptr->is_16bit);
         for (int32_t y = 0; y < y_range;) {
@@ -512,6 +539,21 @@ void svt_av1_filter_block_plane_horz(const PictureControlSet *const pcs_ptr,
                 tx_size              = TX_4X4;
             }
 
+            int fil = params.filter_length;
+            if(ok){
+                if(fil==4){
+                    x4++;
+                }else if(fil==6){
+                    x6++;
+                }else if(fil==8){
+                    x8++;
+                }else if(fil==14){
+                    x14++;
+                }else{
+                    xo++;
+                }
+                ok = 0;
+            }
             switch (params.filter_length) {
                 // apply 4-tap filtering
             case 4:
@@ -577,6 +619,9 @@ void svt_av1_filter_block_plane_horz(const PictureControlSet *const pcs_ptr,
             p += ((advance_units * dst_stride * MI_SIZE) << plane_ptr->is_16bit);
         }
     }
+    #ifdef print_debloking
+    printf("Debloking calls to horizontal %d, [%d,%d], Tap x4 %d, x6 %d, x8 %d, x14 %d, xo %d, Range xr8 %d, xr16 %d, or %d\n", xtot, x_range, y_range, x4, x6, x8, x14, xo, xr8, xr16, ox);
+    #endif
 }
 
 // New function to filter each sb (64x64)
@@ -675,6 +720,9 @@ void loop_filter_sb(EbPictureBufferDesc *frame_buffer, //reconpicture,
             svt_av1_filter_block_plane_horz(pcs_ptr, xd, plane, &pd[plane], mi_row, mi_col);
         }
     }
+    //#ifdef print_debloking
+    //printf("Debloking x4 %d, x6 %d, x8 %d, x14 %d, y4 %d, y6 %d, y8 %d, y14 %d\n", x4, x6, x8, x14, y4, y6, y8, y14);
+    //#endif
 }
 
 void svt_av1_loop_filter_frame(EbPictureBufferDesc *frame_buffer, PictureControlSet *pcs_ptr,

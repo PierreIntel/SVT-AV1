@@ -1429,6 +1429,7 @@ void av1_foreach_rest_unit_in_frame(Av1Common *cm, int32_t plane, RestTileStartV
                               on_rest_unit,
                               priv);
 }
+int c, cx, cy = 0;
 static void foreach_rest_unit_in_tile_seg(const Av1PixelRect *tile_rect, int32_t tile_row,
                                           int32_t tile_col, int32_t tile_cols,
                                           int32_t hunits_per_tile, int32_t units_per_tile,
@@ -1468,8 +1469,9 @@ static void foreach_rest_unit_in_tile_seg(const Av1PixelRect *tile_rect, int32_t
                        : (int32_t)y_unit_end_idx *
                              (int32_t)unit_size; //MIN(y_unit_end_idx * unit_size , tile_h);
     int32_t i = y_unit_start_idx;
-
+    c++;
     while (y0 < yend) {
+        cy++;
         int32_t remaining_h = tile_h - y0;
         int32_t h =
             (remaining_h < ext_size)
@@ -1494,6 +1496,7 @@ static void foreach_rest_unit_in_tile_seg(const Av1PixelRect *tile_rect, int32_t
         int32_t j = x_unit_start_idx;
 
         while (x0 < xend) {
+            cx++;
             int32_t remaining_w = tile_w - x0;
             int32_t w           = (remaining_w < ext_size) ? remaining_w : unit_size;
 
@@ -1511,6 +1514,9 @@ static void foreach_rest_unit_in_tile_seg(const Av1PixelRect *tile_rect, int32_t
         y0 += h;
         ++i;
     }
+    #ifdef print_rest_calls
+    printf("Call to foreach_rest_unit_in_tile %d, y %d, x %d\n",c , cy, cx);
+    #endif
 }
 void av1_foreach_rest_unit_in_frame_seg(Av1Common *cm, int32_t plane, RestTileStartVisitor on_tile,
                                         RestUnitVisitor on_rest_unit, void *priv,

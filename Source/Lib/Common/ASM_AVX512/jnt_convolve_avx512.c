@@ -89,7 +89,8 @@ static INLINE void jnt_y_no_avg_2tap_64_avx512(const uint8_t *const src,
     y_convolve_2tap_64_avx512(src, coeffs, s0, s1, r);
     jnt_no_avg_round_store_64_avx512(r, offset, dst);
 }
-
+int j2vtwo[8], j2vsix[8], j2veight[6];
+int avgtwo, avgsix, avgeight =0;
 static void jnt_convolve_y_2tap_avx512(const uint8_t *const src, const int32_t src_stride,
                                        uint8_t *dst8, const int32_t dst8_stride, const int32_t w,
                                        const int32_t                   h,
@@ -111,7 +112,7 @@ static void jnt_convolve_y_2tap_avx512(const uint8_t *const src, const int32_t s
     __m256i        coeffs_256[4];
     __m512i        coeffs_512[4];
 
-    if (conv_params->do_average) {
+    if (conv_params->do_average) {avgtwo++;
         if (conv_params->use_jnt_comp_avg) {
             const int32_t factor = conv_params->fwd_offset | (conv_params->bck_offset << 16);
             const int32_t offset_comp_avg = round_offset * conv_params->bck_offset +
@@ -501,7 +502,7 @@ static void jnt_convolve_y_2tap_avx512(const uint8_t *const src, const int32_t s
 
             prepare_half_coeffs_2tap_ssse3(filter_params_y, subpel_y_q4, coeffs_128);
 
-            if (w == 2) {
+            if (w == 2) {j2vtwo[0]++;
                 __m128i s_16[2];
 
                 s_16[0] = _mm_cvtsi32_si128(*(int16_t *)src_ptr);
@@ -514,7 +515,7 @@ static void jnt_convolve_y_2tap_avx512(const uint8_t *const src, const int32_t s
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else {
+            } else {j2vtwo[1]++;
                 __m128i s_32[2];
 
                 assert(w == 4);
@@ -535,7 +536,7 @@ static void jnt_convolve_y_2tap_avx512(const uint8_t *const src, const int32_t s
 
             prepare_half_coeffs_2tap_avx2(filter_params_y, subpel_y_q4, coeffs_256);
 
-            if (w == 8) {
+            if (w == 8) {j2vtwo[2]++;
                 __m128i s_64[2];
 
                 s_64[0] = _mm_loadl_epi64((__m128i *)src_ptr);
@@ -548,7 +549,7 @@ static void jnt_convolve_y_2tap_avx512(const uint8_t *const src, const int32_t s
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else {
+            } else {j2vtwo[3]++;
                 __m128i s_128[2];
                 __m256i r[2];
 
@@ -569,7 +570,7 @@ static void jnt_convolve_y_2tap_avx512(const uint8_t *const src, const int32_t s
 
             prepare_half_coeffs_2tap_avx512(filter_params_y, subpel_y_q4, coeffs_512);
 
-            if (w == 32) {
+            if (w == 32) {j2vtwo[4]++;
                 __m256i s_256 = _mm256_loadu_si256((__m256i *)src_ptr);
 
                 do {
@@ -584,7 +585,7 @@ static void jnt_convolve_y_2tap_avx512(const uint8_t *const src, const int32_t s
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else if (w == 64) {
+            } else if (w == 64) {j2vtwo[5]++;
                 __m512i s_512[2];
 
                 s_512[0] = _mm512_loadu_si512((__m512i *)src_ptr);
@@ -607,7 +608,7 @@ static void jnt_convolve_y_2tap_avx512(const uint8_t *const src, const int32_t s
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else {
+            } else {j2vtwo[6]++;
                 __m512i s_512[2][2];
 
                 assert(w == 128);
@@ -648,6 +649,9 @@ static void jnt_convolve_y_2tap_avx512(const uint8_t *const src, const int32_t s
             }
         }
     }
+    #ifdef convolve_jnt
+    printf("jnt ver 2t: 2 %d, 4 %d, 8 %d, 16 %d, 32 %d, 64 %d, 128 %d, avgtwo %d\n", j2vtwo[0], j2vtwo[1], j2vtwo[2], j2vtwo[3], j2vtwo[4], j2vtwo[5], j2vtwo[6], avgtwo);
+    #endif
 }
 
 static void jnt_convolve_y_6tap_avx512(const uint8_t *const src, const int32_t src_stride,
@@ -672,7 +676,7 @@ static void jnt_convolve_y_6tap_avx512(const uint8_t *const src, const int32_t s
     __m256i        coeffs_256[4];
     __m512i        coeffs_512[4];
 
-    if (conv_params->do_average) {
+    if (conv_params->do_average) {avgsix++;
         if (conv_params->use_jnt_comp_avg) {
             const int32_t factor = conv_params->fwd_offset | (conv_params->bck_offset << 16);
             const int32_t offset_comp_avg = round_offset * conv_params->bck_offset +
@@ -1199,7 +1203,7 @@ static void jnt_convolve_y_6tap_avx512(const uint8_t *const src, const int32_t s
 
             y = h;
 
-            if (w == 2) {
+            if (w == 2) {j2vsix[0]++;
                 __m128i s_16[6], ss_128[3];
 
                 s_16[0] = _mm_cvtsi32_si128(*(int16_t *)(src_ptr + 0 * src_stride));
@@ -1226,7 +1230,7 @@ static void jnt_convolve_y_6tap_avx512(const uint8_t *const src, const int32_t s
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else {
+            } else {j2vsix[1]++;
                 __m128i s_32[6], ss_128[3];
 
                 assert(w == 4);
@@ -1261,7 +1265,7 @@ static void jnt_convolve_y_6tap_avx512(const uint8_t *const src, const int32_t s
 
             prepare_half_coeffs_6tap_avx2(filter_params_y, subpel_y_q4, coeffs_256);
 
-            if (w == 8) {
+            if (w == 8) {j2vsix[2]++;
                 __m128i s_64[6];
                 __m256i ss_256[3];
 
@@ -1291,7 +1295,7 @@ static void jnt_convolve_y_6tap_avx512(const uint8_t *const src, const int32_t s
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else {
+            } else {j2vsix[3]++;
                 __m128i s_128[6];
                 __m256i ss_256[6], r[2];
 
@@ -1333,7 +1337,7 @@ static void jnt_convolve_y_6tap_avx512(const uint8_t *const src, const int32_t s
 
             prepare_half_coeffs_6tap_avx512(filter_params_y, subpel_y_q4, coeffs_512);
 
-            if (w == 32) {
+            if (w == 32) {j2vsix[4]++;
                 __m256i s_256[5];
                 __m512i s_512[4], ss_512[6], r[2];
 
@@ -1366,7 +1370,7 @@ static void jnt_convolve_y_6tap_avx512(const uint8_t *const src, const int32_t s
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else {
+            } else {j2vsix[5]++;
                 __m512i s_512[6], ss_512[6], tt_512[6], r[4];
 
                 assert(!(w % 64));
@@ -1418,6 +1422,9 @@ static void jnt_convolve_y_6tap_avx512(const uint8_t *const src, const int32_t s
             }
         }
     }
+    #ifdef convolve_jnt
+    printf("jnt ver 6t: 2 %d, 4 %d, 8 %d, 16 %d, 32 %d, 64 %d, 128 %d, avgeight %d\n", j2vsix[0], j2vsix[1], j2vsix[2], j2vsix[3], j2vsix[4], j2vsix[5], j2vsix[6], avgsix);
+    #endif
 }
 
 static void jnt_convolve_y_8tap_avx512(const uint8_t *const src, const int32_t src_stride,
@@ -1442,7 +1449,7 @@ static void jnt_convolve_y_8tap_avx512(const uint8_t *const src, const int32_t s
     __m256i        coeffs_256[4];
     __m512i        coeffs_512[4];
 
-    if (conv_params->do_average) {
+    if (conv_params->do_average) {avgeight++;
         if (conv_params->use_jnt_comp_avg) {
             const int32_t factor = conv_params->fwd_offset | (conv_params->bck_offset << 16);
             const int32_t offset_comp_avg = round_offset * conv_params->bck_offset +
@@ -2073,7 +2080,7 @@ static void jnt_convolve_y_8tap_avx512(const uint8_t *const src, const int32_t s
 
             y = h;
 
-            if (w == 2) {
+            if (w == 2) {j2veight[0]++;
                 __m128i s_16[8], ss_128[4];
 
                 s_16[0] = _mm_cvtsi32_si128(*(int16_t *)(src_ptr + 0 * src_stride));
@@ -2106,7 +2113,7 @@ static void jnt_convolve_y_8tap_avx512(const uint8_t *const src, const int32_t s
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else {
+            } else {j2veight[1]++;
                 __m128i s_32[8], ss_128[4];
 
                 assert(w == 4);
@@ -2148,7 +2155,7 @@ static void jnt_convolve_y_8tap_avx512(const uint8_t *const src, const int32_t s
 
                 prepare_half_coeffs_8tap_avx2(filter_params_y, subpel_y_q4, coeffs_256);
 
-                if (w == 8) {
+                if (w == 8) {j2veight[2]++;
                     __m128i s_64[8];
                     __m256i ss_256[4];
 
@@ -2185,7 +2192,7 @@ static void jnt_convolve_y_8tap_avx512(const uint8_t *const src, const int32_t s
                         dst += 2 * dst_stride;
                         y -= 2;
                     } while (y);
-                } else {
+                } else {j2veight[3]++;
                     __m128i s_128[8];
                     __m256i ss_256[8], r[2];
 
@@ -2237,7 +2244,7 @@ static void jnt_convolve_y_8tap_avx512(const uint8_t *const src, const int32_t s
 
                 prepare_half_coeffs_8tap_avx512(filter_params_y, subpel_y_q4, coeffs_512);
 
-                if (w == 32) {
+                if (w == 32) {j2veight[4]++;
                     __m256i s_256[7];
                     __m512i s_512[6], ss_512[8], r[2];
 
@@ -2279,7 +2286,7 @@ static void jnt_convolve_y_8tap_avx512(const uint8_t *const src, const int32_t s
                         dst += 2 * dst_stride;
                         y -= 2;
                     } while (y);
-                } else {
+                } else {j2veight[5]++;
                     __m512i s_512[8], ss_512[8], tt_512[8], r[4];
 
                     assert(!(w % 64));
@@ -2343,6 +2350,9 @@ static void jnt_convolve_y_8tap_avx512(const uint8_t *const src, const int32_t s
             }
         }
     }
+    #ifdef convolve_jnt
+    printf("jnt ver 8t: 2 %d, 4 %d, 8 %d, 16 %d, 32 %d, 64 %d, avgeight %d\n", j2veight[0], j2veight[1], j2veight[2], j2veight[3], j2veight[4], j2veight[5], avgeight);
+    #endif
 }
 
 typedef void (*JntConvolveYTapFunc)(const uint8_t *const src, const int32_t src_stride,
@@ -2995,7 +3005,8 @@ SIMD_INLINE void jnt_x_no_avg_8tap_64_avx512(const uint8_t *const src, const __m
     x_convolve_8tap_64_avx512(src, coeffs, filt, r);
     jnt_no_avg_round_store_64_avx512(r, offset, dst);
 }
-
+int j2htwo[7], j2hsix[7], j2height[7];
+int avghtwo, avghsix, avgheight;
 static void jnt_convolve_x_2tap_avx512(const uint8_t *const src, const int32_t src_stride,
                                        uint8_t *dst8, const int32_t dst8_stride, const int32_t w,
                                        const int32_t                   h,
@@ -3016,7 +3027,7 @@ static void jnt_convolve_x_2tap_avx512(const uint8_t *const src, const int32_t s
     __m256i        coeffs_256[4];
     __m512i        coeffs_512[4];
 
-    if (conv_params->do_average) {
+    if (conv_params->do_average) {avghtwo++;
         if (conv_params->use_jnt_comp_avg) {
             const int32_t round_bits = 2 * FILTER_BITS - round_0 - round_1;
             const int32_t factor     = conv_params->fwd_offset | (conv_params->bck_offset << 16);
@@ -3261,7 +3272,7 @@ static void jnt_convolve_x_2tap_avx512(const uint8_t *const src, const int32_t s
 
             prepare_half_coeffs_2tap_ssse3(filter_params_x, subpel_x_q4, coeffs_128);
 
-            if (w == 2) {
+            if (w == 2) {j2htwo[0]++;
                 do {
                     const __m128i res = x_convolve_2tap_2x2_sse4_1(src_ptr, src_stride, coeffs_128);
                     jnt_no_avg_round_store_2x2_sse2(res, offset_no_avg_128, dst, dst_stride);
@@ -3269,7 +3280,7 @@ static void jnt_convolve_x_2tap_avx512(const uint8_t *const src, const int32_t s
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else {
+            } else {j2htwo[1]++;
                 assert(w == 4);
 
                 do {
@@ -3286,7 +3297,7 @@ static void jnt_convolve_x_2tap_avx512(const uint8_t *const src, const int32_t s
 
             prepare_half_coeffs_2tap_avx2(filter_params_x, subpel_x_q4, coeffs_256);
 
-            if (w == 8) {
+            if (w == 8) {j2htwo[2]++;
                 do {
                     const __m256i res = x_convolve_2tap_8x2_avx2(src_ptr, src_stride, coeffs_256);
                     jnt_no_avg_round_store_8x2_avx2(res, offset_no_avg_256, dst, dst_stride);
@@ -3294,7 +3305,7 @@ static void jnt_convolve_x_2tap_avx512(const uint8_t *const src, const int32_t s
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else {
+            } else {j2htwo[3]++;
                 assert(w == 16);
 
                 do {
@@ -3310,7 +3321,7 @@ static void jnt_convolve_x_2tap_avx512(const uint8_t *const src, const int32_t s
 
             prepare_half_coeffs_2tap_avx512(filter_params_x, subpel_x_q4, coeffs_512);
 
-            if (w == 32) {
+            if (w == 32) {j2htwo[4]++;
                 do {
                     jnt_x_no_avg_2tap_32x2_avx512(
                         src_ptr, src_stride, coeffs_512, offset_no_avg_512, dst, dst_stride);
@@ -3318,13 +3329,13 @@ static void jnt_convolve_x_2tap_avx512(const uint8_t *const src, const int32_t s
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else if (w == 64) {
+            } else if (w == 64) {j2htwo[5]++;
                 do {
                     jnt_x_no_avg_2tap_64_avx512(src_ptr, coeffs_512, offset_no_avg_512, dst);
                     src_ptr += src_stride;
                     dst += dst_stride;
                 } while (--y);
-            } else {
+            } else {j2htwo[6]++;
                 assert(w == 128);
 
                 do {
@@ -3337,6 +3348,9 @@ static void jnt_convolve_x_2tap_avx512(const uint8_t *const src, const int32_t s
             }
         }
     }
+    #ifdef convolve_jnt
+    printf("jnt hor 2t: 2 %d, 4 %d, 8 %d, 16 %d, 32 %d, 64 %d, 128 %d, avghtwo %d\n", j2htwo[0], j2htwo[1], j2htwo[2], j2htwo[3], j2htwo[4], j2htwo[5], j2htwo[6], avghtwo);
+    #endif
 }
 
 static void jnt_convolve_x_6tap_avx512(const uint8_t *const src, const int32_t src_stride,
@@ -3357,7 +3371,7 @@ static void jnt_convolve_x_6tap_avx512(const uint8_t *const src, const int32_t s
     ConvBufType *  dst          = conv_params->dst;
     int32_t        y            = h;
 
-    if (conv_params->do_average) {
+    if (conv_params->do_average) {avghsix++;
         if (conv_params->use_jnt_comp_avg) {
             const int32_t factor = conv_params->fwd_offset | (conv_params->bck_offset << 16);
             const int32_t offset_comp_avg = round_offset * conv_params->bck_offset +
@@ -3582,7 +3596,7 @@ static void jnt_convolve_x_6tap_avx512(const uint8_t *const src, const int32_t s
             filt_256[2] = _mm256_loadu_si256((__m256i const *)filt3_global_avx);
             prepare_half_coeffs_6tap_avx2(filter_params_x, subpel_x_q4, coeffs_256);
 
-            if (w == 8) {
+            if (w == 8) {j2hsix[0]++;
                 do {
                     const __m256i res =
                         x_convolve_6tap_8x2_avx2(src_ptr, src_stride, coeffs_256, filt_256);
@@ -3591,7 +3605,7 @@ static void jnt_convolve_x_6tap_avx512(const uint8_t *const src, const int32_t s
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else {
+            } else {j2hsix[1]++;
                 assert(w == 16);
 
                 do {
@@ -3616,7 +3630,7 @@ static void jnt_convolve_x_6tap_avx512(const uint8_t *const src, const int32_t s
             filt_512[2] = zz_load_512(filt3_global_avx);
             prepare_half_coeffs_6tap_avx512(filter_params_x, subpel_x_q4, coeffs_512);
 
-            if (w == 32) {
+            if (w == 32) {j2hsix[2]++;
                 do {
                     jnt_x_no_avg_6tap_32x2_avx512(src_ptr,
                                                   src_stride,
@@ -3629,14 +3643,14 @@ static void jnt_convolve_x_6tap_avx512(const uint8_t *const src, const int32_t s
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else if (w == 64) {
+            } else if (w == 64) {j2hsix[3]++;
                 do {
                     jnt_x_no_avg_6tap_64_avx512(
                         src_ptr, coeffs_512, filt_512, offset_no_avg_512, dst);
                     src_ptr += src_stride;
                     dst += dst_stride;
                 } while (--y);
-            } else {
+            } else {j2hsix[4]++;
                 assert(w == 128);
 
                 do {
@@ -3650,6 +3664,9 @@ static void jnt_convolve_x_6tap_avx512(const uint8_t *const src, const int32_t s
             }
         }
     }
+    #ifdef convolve_jnt
+    printf("jnt hor 6t: 8 %d, 16 %d, 32 %d, 64 %d, 128 %d, avghsix %d\n", j2hsix[0], j2hsix[1], j2hsix[2], j2hsix[3], j2hsix[4], avghsix);
+    #endif
 }
 
 static void jnt_convolve_x_8tap_avx512(const uint8_t *const src, const int32_t src_stride,
@@ -3670,7 +3687,7 @@ static void jnt_convolve_x_8tap_avx512(const uint8_t *const src, const int32_t s
     ConvBufType *  dst          = conv_params->dst;
     int32_t        y            = h;
 
-    if (conv_params->do_average) {
+    if (conv_params->do_average) {avgheight++;
         if (conv_params->use_jnt_comp_avg) {
             const int32_t factor = conv_params->fwd_offset | (conv_params->bck_offset << 16);
             const int32_t offset_comp_avg = round_offset * conv_params->bck_offset +
@@ -3901,7 +3918,7 @@ static void jnt_convolve_x_8tap_avx512(const uint8_t *const src, const int32_t s
             filt_256[3] = _mm256_loadu_si256((__m256i const *)filt4_global_avx);
             prepare_half_coeffs_8tap_avx2(filter_params_x, subpel_x_q4, coeffs_256);
 
-            if (w == 8) {
+            if (w == 8) {j2height[0]++;
                 do {
                     const __m256i res =
                         x_convolve_8tap_8x2_avx2(src_ptr, src_stride, coeffs_256, filt_256);
@@ -3910,7 +3927,7 @@ static void jnt_convolve_x_8tap_avx512(const uint8_t *const src, const int32_t s
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else {
+            } else {j2height[1]++;
                 assert(w == 16);
 
                 do {
@@ -3935,7 +3952,7 @@ static void jnt_convolve_x_8tap_avx512(const uint8_t *const src, const int32_t s
             filt_512[3] = zz_load_512(filt4_global_avx);
             prepare_half_coeffs_8tap_avx512(filter_params_x, subpel_x_q4, coeffs_512);
 
-            if (w == 32) {
+            if (w == 32) {j2height[2]++;
                 do {
                     jnt_x_no_avg_8tap_32x2_avx512(src_ptr,
                                                   src_stride,
@@ -3948,14 +3965,14 @@ static void jnt_convolve_x_8tap_avx512(const uint8_t *const src, const int32_t s
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else if (w == 64) {
+            } else if (w == 64) {j2height[3]++;
                 do {
                     jnt_x_no_avg_8tap_64_avx512(
                         src_ptr, coeffs_512, filt_512, offset_no_avg_512, dst);
                     src_ptr += src_stride;
                     dst += dst_stride;
                 } while (--y);
-            } else {
+            } else {j2height[4]++;
                 assert(w == 128);
 
                 do {
@@ -3969,6 +3986,9 @@ static void jnt_convolve_x_8tap_avx512(const uint8_t *const src, const int32_t s
             }
         }
     }
+    #ifdef convolve_jnt
+    printf("jnt hor 8t: 8 %d, 16 %d, 32 %d, 64 %d, 128 %d, avgheight %d\n", j2height[0], j2height[1], j2height[2], j2height[3], j2height[4], avgheight);
+    #endif
 }
 
 typedef void (*JntConvolveXTapFunc)(const uint8_t *const src, const int32_t src_stride,

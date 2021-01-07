@@ -3231,7 +3231,7 @@ static INLINE void compute_stats_win7_avx512(const int16_t *const d, const int32
         }
     } while (++i < wiener_win);
 }
-
+int win7, win5, win3, w256, h248, h256, wo, ho, cs =0;
 void svt_av1_compute_stats_avx512(int32_t wiener_win, const uint8_t *dgd, const uint8_t *src,
                                   int32_t h_start, int32_t h_end, int32_t v_start, int32_t v_end,
                                   int32_t dgd_stride, int32_t src_stride, int64_t *M, int64_t *H) {
@@ -3243,7 +3243,7 @@ void svt_av1_compute_stats_avx512(int32_t wiener_win, const uint8_t *dgd, const 
     const int32_t d_stride = (width + 2 * wiener_halfwin + 31) & ~31;
     const int32_t s_stride = (width + 31) & ~31;
     int16_t *     d, *s;
-
+    cs++;
     // The maximum input size is width * height, which is
     // (9 / 4) * RESTORATION_UNITSIZE_MAX * RESTORATION_UNITSIZE_MAX. Enlarge to
     // 3 * RESTORATION_UNITSIZE_MAX * RESTORATION_UNITSIZE_MAX considering
@@ -3262,14 +3262,26 @@ void svt_av1_compute_stats_avx512(int32_t wiener_win, const uint8_t *dgd, const 
                          d_stride);
 
     if (wiener_win == WIENER_WIN) {
+        win7++;
         compute_stats_win7_avx512(d, d_stride, s, s_stride, width, height, M, H, 8);
     } else if (wiener_win == WIENER_WIN_CHROMA) {
+        win5++;
         compute_stats_win5_avx512(d, d_stride, s, s_stride, width, height, M, H, 8);
     } else {
+        win3++;
         assert(wiener_win == WIENER_WIN_3TAP);
         compute_stats_win3_avx512(d, d_stride, s, s_stride, width, height, M, H, 8);
     }
-
+    if(width==256){w256++;}
+    else{
+        //printf("WO %d\n",width);
+        wo++;}
+    if(height==248){h248++;}
+    else if(height==256){h256++;}
+    else{ho++;}
+    #ifdef print_wiener_stats
+    printf("Compute stats cpts %d, windows win7 %d, win5 %d, win3 %d, range w256 %d, h248 %d, h256 %d, wo %d, ho %d\n",cs, win7, win5, win3, w256, h248, h256, wo, ho);
+    #endif
     // H is a symmetric matrix, so we only need to fill out the upper triangle.
     // We can copy it down to the lower triangle outside the (i, j) loops.
     diagonal_copy_stats_avx2(wiener_win2, H);
@@ -3368,12 +3380,17 @@ void svt_av1_compute_stats_highbd_avx512(int32_t wiener_win, const uint8_t *dgd8
 static INLINE __m512i pair_set_epi16_avx512(int32_t a, int32_t b) {
     return _mm512_set1_epi32((int32_t)(((uint16_t)(a)) | (((uint32_t)(b)) << 16)));
 }
-
+int pixel = 0;
 int64_t svt_av1_lowbd_pixel_proj_error_avx512(const uint8_t *src8, int32_t width, int32_t height,
                                               int32_t src_stride, const uint8_t *dat8,
                                               int32_t dat_stride, int32_t *flt0, int32_t flt0_stride,
                                               int32_t *flt1, int32_t flt1_stride, int32_t xq[2],
                                               const SgrParamsType *params) {
+    #ifdef print_pixel
+    printf("Calls to pixel_proj_error %d\n", pixel);
+    #endif
+    pixel++;
+    
     const int32_t  shift = SGRPROJ_RST_BITS + SGRPROJ_PRJ_BITS;
     const uint8_t *src   = src8;
     const uint8_t *dat   = dat8;

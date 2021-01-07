@@ -692,7 +692,7 @@ static AOM_FORCE_INLINE void final_filter_fast(int32_t *dst, int32_t dst_stride,
         } while (++i < height);
     }
 }
-
+int calls = 0;
 void svt_av1_selfguided_restoration_avx2(const uint8_t *dgd8, int32_t width, int32_t height,
                                          int32_t dgd_stride, int32_t *flt0, int32_t *flt1,
                                          int32_t flt_stride, int32_t sgr_params_idx,
@@ -700,7 +700,7 @@ void svt_av1_selfguided_restoration_avx2(const uint8_t *dgd8, int32_t width, int
     // The ALIGN_POWER_OF_TWO macro here ensures that column 1 of atl, btl,
     // ctl and dtl is 32-byte aligned.
     const int32_t buf_elts = ALIGN_POWER_OF_TWO(RESTORATION_PROC_UNIT_PELS, 3);
-
+    calls++;
     DECLARE_ALIGNED(32, int32_t, buf[4 * ALIGN_POWER_OF_TWO(RESTORATION_PROC_UNIT_PELS, 3)]);
 
     const int32_t width_ext  = width + 2 * SGRPROJ_BORDER_HORZ;
@@ -764,6 +764,9 @@ void svt_av1_selfguided_restoration_avx2(const uint8_t *dgd8, int32_t width, int
         calc_ab(A, b, C, D, width, height, buf_stride, bit_depth, sgr_params_idx, 1);
         final_filter(flt1, flt_stride, A, b, buf_stride, dgd8, dgd_stride, width, height, highbd);
     }
+    #ifdef self_calls
+    printf("Calls to selfguided %d\n", calls);
+    #endif
 }
 
 void svt_apply_selfguided_restoration_avx2(const uint8_t *dat8, int32_t width, int32_t height,

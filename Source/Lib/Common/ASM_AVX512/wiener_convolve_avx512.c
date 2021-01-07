@@ -293,7 +293,8 @@ static INLINE void pack_store_32x2_avx512(const __m512i res0, const __m512i res1
     const __m512i d = _mm512_packus_epi16(res0, res1);
     storeu_u8_32x2_avx512(d, dst, stride);
 }
-
+int t7[4], t5[4], t3[4] = {0,0,0,0};
+int counter = 0;
 // Note: If this function crash in Windows, please pay attention to the pointer
 // filter_x, which could be overridden by other instructions. It's a bug from
 // Visual Studio compiler. Please adjust the positions of the following 2
@@ -307,6 +308,10 @@ void svt_av1_wiener_convolve_add_src_avx512(const uint8_t* const src, const ptrd
                                             const int16_t* const filter_y, const int32_t w,
                                             const int32_t               h,
                                             const ConvolveParams* const conv_params) {
+    #ifdef print_convolve_wiener
+    printf("Calls to wiener_convolve %d,{Tap 7: w 64 %d, 32 %d, 16 %d, 8 %d }; {Tap 5: 64 %d, 32 %d, 16 %d, 8 %d}; {Tap 3: 64 %d, 32 %d, 16 %d, 8 %d}\n",counter,t7[0],t7[1],t7[2],t7[3],t5[0],t5[1],t5[2],t5[3],t3[0],t3[1],t3[2],t3[3]);
+    #endif
+    counter++;
     const int32_t  bd            = 8;
     const int      center_tap    = (SUBPEL_TAPS - 1) / 2;
     const int      round_0       = WIENER_ROUND0_BITS;
@@ -344,6 +349,7 @@ void svt_av1_wiener_convolve_add_src_avx512(const uint8_t* const src, const ptrd
     if (!cnt_zero_coef) {
         const __m128i coeffs_x = xx_loadu_128(filter_x);
         if (width >= 32) {
+            t7[0]++;
             int32_t x = width & ~63;
 
             const __m512i filt_center_512 = zz_load_512(filt_center_tap7_global_avx);
@@ -447,6 +453,7 @@ void svt_av1_wiener_convolve_add_src_avx512(const uint8_t* const src, const ptrd
 
             x = width & ~31;
             if (x) {
+                t7[1]++;
                 const uint8_t* src_p = src_ptr;
                 uint8_t*       dst_p = dst_ptr;
                 __m512i        s[2][7];
@@ -543,6 +550,7 @@ void svt_av1_wiener_convolve_add_src_avx512(const uint8_t* const src, const ptrd
         coeffs_v[1] = _mm256_shuffle_epi32(filter_coeffs_y, 0x55);
 
         if (width >= 16) {
+            t7[2]++;
             const uint8_t* src_p = src_ptr;
             uint8_t*       dst_p = dst_ptr;
             __m256i        s[2][7];
@@ -627,6 +635,7 @@ void svt_av1_wiener_convolve_add_src_avx512(const uint8_t* const src, const ptrd
         }
 
         if (width) {
+            t7[3]++;
             const uint8_t* src_p = src_ptr;
             __m256i        s[7];
 
@@ -672,6 +681,7 @@ void svt_av1_wiener_convolve_add_src_avx512(const uint8_t* const src, const ptrd
         src_ptr += src_stride + 1;
 
         if (width >= 32) {
+            t5[0]++;
             int32_t x = width & ~63;
 
             const __m512i filt_center_512 = zz_load_512(filt_center_tap5_global_avx);
@@ -756,6 +766,7 @@ void svt_av1_wiener_convolve_add_src_avx512(const uint8_t* const src, const ptrd
 
             x = width & ~31;
             if (x) {
+                t5[1]++;
                 const uint8_t* src_p = src_ptr;
                 uint8_t*       dst_p = dst_ptr;
                 __m512i        s[2][5];
@@ -837,6 +848,7 @@ void svt_av1_wiener_convolve_add_src_avx512(const uint8_t* const src, const ptrd
         coeffs_v[1] = _mm256_shuffle_epi8(filter_coeffs_y, _mm256_set1_epi32(0x09080706u));
 
         if (width >= 16) {
+            t5[2]++;
             const uint8_t* src_p = src_ptr;
             uint8_t*       dst_p = dst_ptr;
             __m256i        s[2][5];
@@ -906,6 +918,7 @@ void svt_av1_wiener_convolve_add_src_avx512(const uint8_t* const src, const ptrd
         }
 
         if (width) {
+            t5[3]++;
             const uint8_t* src_p = src_ptr;
             __m256i        s[5];
 
@@ -946,6 +959,7 @@ void svt_av1_wiener_convolve_add_src_avx512(const uint8_t* const src, const ptrd
         src_ptr += 2 * src_stride + 2;
 
         if (width >= 32) {
+            t3[0]++;
             int32_t x = width & ~63;
 
             const __m512i filt_center_512 = zz_load_512(filt_center_tap3_global_avx);
@@ -1007,6 +1021,7 @@ void svt_av1_wiener_convolve_add_src_avx512(const uint8_t* const src, const ptrd
 
             x = width & ~31;
             if (x) {
+                t3[1]++;
                 const uint8_t* src_p = src_ptr;
                 uint8_t*       dst_p = dst_ptr;
                 __m512i        s[2][3];
@@ -1070,6 +1085,7 @@ void svt_av1_wiener_convolve_add_src_avx512(const uint8_t* const src, const ptrd
         coeffs_v[1] = _mm256_shuffle_epi32(filter_coeffs_y, 0xaa);
 
         if (width >= 16) {
+            t3[2]++;
             const uint8_t* src_p = src_ptr;
             uint8_t*       dst_p = dst_ptr;
             __m256i        s[2][3];
@@ -1123,6 +1139,7 @@ void svt_av1_wiener_convolve_add_src_avx512(const uint8_t* const src, const ptrd
         }
 
         if (width) {
+            t3[3]++;
             const uint8_t* src_p = src_ptr;
             __m256i        s[5];
 

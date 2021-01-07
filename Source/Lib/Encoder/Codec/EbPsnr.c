@@ -87,7 +87,7 @@ uint32_t svt_aom_mse16x16_c(const uint8_t *src_ptr, int32_t source_stride, const
     variance(src_ptr, source_stride, ref_ptr, recon_stride, 16, 16, sse, &sum);
     return *sse - (uint32_t)(((int64_t)sum * sum) / (16 * 16));
 }
-
+int wd, hd, l16, counter_sse = 0;
 static int64_t get_sse(const uint8_t *a, int32_t a_stride, const uint8_t *b, int32_t b_stride,
                        int32_t width, int32_t height) {
     const int32_t dw        = width % 16;
@@ -95,13 +95,15 @@ static int64_t get_sse(const uint8_t *a, int32_t a_stride, const uint8_t *b, int
     int64_t       total_sse = 0;
     uint32_t      sse       = 0;
     int32_t       x, y;
-
+    counter_sse++;
     if (dw > 0) {
+        wd++;
         sse = encoder_variance(&a[width - dw], a_stride, &b[width - dw], b_stride, dw, height);
         total_sse += sse;
     }
 
     if (dh > 0) {
+        hd++;
         sse = encoder_variance(&a[(height - dh) * a_stride],
                                a_stride,
                                &b[(height - dh) * b_stride],
@@ -115,6 +117,7 @@ static int64_t get_sse(const uint8_t *a, int32_t a_stride, const uint8_t *b, int
         const uint8_t *pa = a;
         const uint8_t *pb = b;
         for (x = 0; x < width / 16; ++x) {
+            l16++;
             svt_aom_mse16x16(pa, a_stride, pb, b_stride, &sse);
 
             total_sse += sse;
@@ -126,7 +129,9 @@ static int64_t get_sse(const uint8_t *a, int32_t a_stride, const uint8_t *b, int
         a += 16 * a_stride;
         b += 16 * b_stride;
     }
-
+    #ifdef print_getsse_calls
+    printf("Calls to get_sse %d, svt_aom_mse16x16 %d, encoder_variance vertical %d, horizontal %d\n", counter_sse, l16, wd, hd);
+    #endif
     return total_sse;
 }
 
