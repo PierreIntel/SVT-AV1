@@ -35,8 +35,8 @@ extern "C" {
 #ifndef NON_AVX512_SUPPORT
 //#define NON_AVX512_SUPPORT
 #endif
-#define VNNI_SUPPORT_6tap
-#define VNNI_SUPPORT_8tap
+//#define VNNI_SUPPORT_6tap
+//#define VNNI_SUPPORT_8tap
 
 //#define print_debloking
 //#define print_getsse_calls

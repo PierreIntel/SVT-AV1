@@ -23,7 +23,7 @@
 
 
 int hat[7], hbt[5], hct[5], vat[7], vbt[7], vct[7], vdt[7], vet[7] = {0,0,0,0,0};
-
+int ysp8, ysp16 = 0;
 static void convolve_2d_sr_hor_2tap_avx512(const uint8_t *const src, const int32_t src_stride,
                                            const int32_t w, const int32_t h,
                                            const InterpFilterParams *const filter_params_x,
@@ -837,7 +837,7 @@ static void convolve_2d_sr_ver_6tap_avx512(const int16_t *const im_block, const 
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else {
+            } else {ysp8++;
                 do {
                     //#ifndef VNNI_SUPPORT
                     xy_y_convolve_6tap_8x2_half_pel_avx2(im, coeffs_256, s_256, r);
@@ -862,7 +862,7 @@ static void convolve_2d_sr_ver_6tap_avx512(const int16_t *const im_block, const 
             s_256[4] = _mm256_loadu_si256((__m256i *)(im + 4 * 16));
             y        = h;
 
-            if (subpel_y_q4 != 8) {
+            if (subpel_y_q4 != 8){
                 __m256i ss_256[6], tt_256[6], r[4];
 
                 ss_256[0] = _mm256_unpacklo_epi16(s_256[0], s_256[1]);
@@ -886,7 +886,7 @@ static void convolve_2d_sr_ver_6tap_avx512(const int16_t *const im_block, const 
                     dst += 2 * dst_stride;
                     y -= 2;
                 } while (y);
-            } else {
+            } else {ysp16++;
                 __m256i ss_256[4], r[4];
 
                 do {
@@ -965,7 +965,7 @@ static void convolve_2d_sr_ver_6tap_avx512(const int16_t *const im_block, const 
         }
     }
     #ifdef convolve_2d
-        printf("conv2d ver_6t : 2 %d, 4 %d, 8 %d, 16 %d, 32 %d, 64 %d\n", vdt[0], vdt[1], vdt[2], vdt[3], vdt[4], vdt[5]);
+        printf("conv2d ver_6t : 2 %d, 4 %d, 8 %d (sp8 %d), 16 %d (sp16 %d), 32 %d, 64 %d\n", vdt[0], vdt[1], vdt[2], ysp8, vdt[3], ysp16, vdt[4], vdt[5]);
     #endif
 }
 
