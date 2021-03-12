@@ -9,6 +9,9 @@
  * PATENTS file, you can obtain it at https://www.aomedia.org/license/patent-license.
  */
 
+#define PRINT_256(vec) (printf("vec = %llx %llx %llx %llx\n", vec[3], vec[2],vec[1], vec[0]))
+#define PRINT_512(vec) (printf("vec = %llx %llx %llx %llx %llx %llx %llx %llx\n", vec[7], vec[6],vec[5], vec[4], vec[3], vec[2],vec[1], vec[0]))
+
 #ifndef AV1_COMMON_AV1_CONVOLVE_H_
 #define AV1_COMMON_AV1_CONVOLVE_H_
 
